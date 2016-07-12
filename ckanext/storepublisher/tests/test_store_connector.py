@@ -126,7 +126,7 @@ class StoreConnectorTest(unittest.TestCase):
     def test_get_resource(self, initial_name, expected_name):
         dataset = DATASET.copy()
         dataset['title'] = initial_name
-        resource = self.instance._get_resource(dataset)
+        resource = self.instance._get_resource(dataset, {})
 
         # Check the values
         self.assertEquals('Dataset %s - ID %s' % (expected_name, DATASET['id']), resource['name'])
@@ -402,7 +402,7 @@ class StoreConnectorTest(unittest.TestCase):
         # Call the function and check that we recieve the correct result
         dataset = DATASET.copy()
         dataset['private'] = private
-        self.assertEquals(expected_resource, self.instance._create_resource(dataset))
+        self.assertEquals(expected_resource, self.instance._create_resource(dataset, {}))
 
         # Assert that the methods has been called
         self.instance._get_resource.assert_called_once_with(dataset)

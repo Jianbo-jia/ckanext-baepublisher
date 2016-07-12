@@ -128,7 +128,7 @@ class PublishControllerUI(base.BaseController):
                 log.warn('User tried to create a paid offering for a public dataset')
                 c.errors['Price'] = ['You cannot set a price to a dataset that is public since everyone can access it']
 
-            if not c.errors:
+            if c.errors is None:
 
                 try:
                     offering_url = self._store_connector.create_offering(dataset, offering_info)
