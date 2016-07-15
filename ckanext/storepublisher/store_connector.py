@@ -73,7 +73,7 @@ class StoreConnector(object):
         resource['description'] = dataset['notes']
         resource['isBundle'] = False
         resource['brand'] = c.user  # Name of the author
-        resource['lifeCycleStatus'] = 'Launched'
+        resource['lifecycleStatus'] = 'Launched'
         resource['validFor'] = {}
         resource['relatedParty'] = [{
             'id': c.user,
@@ -93,11 +93,14 @@ class StoreConnector(object):
                     'data': content_info['image_base64']
                 }
             } 
-            _make_request('post', '{}/api/offering/resources'.format(self.store_url), headers, body)
+            # TODO. Extract the url from the response body. Ill try with href, but im not sure, this should be something like
+            # url/documentManagement/attachment/idImage or something like that
+            url = _make_request('post', '{}/api/offering/resources'.format(self.store_url), headers, body).json().get('Location')
+            return url
 
         resource['attachment'] = [{
             'type': 'Picture',
-            'url': _upload_image # Esto requiere hacer una petición post y meter la url de lo que devuelva aquí. Mirar el correo de fran.
+            'url': _upload_image()
         }] # TODO: image or other attachments
         resource['bundleProductSpecification'] = [{}]
         resource['productSpecificationRelationShip'] = [{}]
@@ -124,36 +127,44 @@ class StoreConnector(object):
         offering = {}
         offering['name'] = offering_info['name']
         offering['version'] = offering_info['version']
-        offering['notification_url'] = '%s/api/action/dataset_acquired' % self.site_url
-        offering['image'] = {
-            'name': 'ckan.png',
-            'data': offering_info['image_base64']
-        }
-        offering['related_images'] = []
-        offering['resources'] = []
-        offering['resources'].append(resource)
-        offering['applications'] = []
-        offering['offering_info'] = {
-            'description': offering_info['description'],
-            'pricing': {}
-        }
+        offering['lifecycleStatus'] = 'Launched'
+        offering['productSpecification'] = {
+            'id': resource['id'],
+            'href': resource['href'],
+            'version': resource['version'],
+            'name': resource['name']
+        } 
+        # Set price
+        if 'price' not in offering_info or offering_info['price'] == 0.0:
+            offering['productOfferingPrice'] = []
+        else:
+            price = float(offering_info['price'])
+            offering['productOfferingPrice'] = [{
+                'name': 'One time fee',
+                'description': 'One time fee of {} EUR'.format(offering_info['price']),
+                'priceType': 'one time',
+                'price': {
+                    'taxIncludedAmount': offering_info['price'],
+                    'dutyFreeAmount': str((price - (price*0.2))), # Price - 20%
+                    'taxRate': '20',
+                    'currencyCode': 'EUR'  
+                }
+            }]
 
         # Set license
+        # This will be changed
+        ######################################################################
+
         if offering_info['license_title'] or offering_info['license_description']:
             offering['offering_info']['legal'] = {
                 'title': offering_info['license_title'],
                 'text': offering_info['license_description']
             }
 
-        # Set price
-        if offering_info['price'] == 0.0:
-            offering['offering_info']['pricing']['price_model'] = 'free'
-        else:
-            offering['offering_info']['pricing']['price_model'] = 'single_payment'
-            offering['offering_info']['pricing']['price'] = offering_info['price']
-
         offering['repository'] = self.repository
         offering['open'] = offering_info['is_open']
+
+        #######################################################################
 
         return offering
 
@@ -232,7 +243,8 @@ class StoreConnector(object):
         resources = req.json()
 
         def _valid_resources_filter(resource):
-            return resource.get('state') != 'deleted' and resource.get('link', '') == dataset_url
+            # TODO Well... Ill change state for lifecycleStatus and link for Location. Im sure this is wrong, but this is more appropriate
+            return resource.get('lifecycleStatus') != 'deleted' and resource.get('Location', '') == dataset_url 
 
         return filter(_valid_resources_filter, resources)
 
@@ -327,6 +339,7 @@ class StoreConnector(object):
         log.info(dataset)
         log.info('Offering_info: ')
         log.info(offering_info)
+
         # Make the request to the server
         headers = {'Content-Type': 'application/json'}
         try:
