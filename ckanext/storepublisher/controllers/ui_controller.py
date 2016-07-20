@@ -24,6 +24,7 @@ import ckan.model as model
 import ckan.plugins as plugins
 import logging
 import os
+import requests # I think that this is a new dependency but we need it
 
 from ckanext.storepublisher.store_connector import StoreConnector, StoreException
 from ckan.common import request
@@ -42,6 +43,36 @@ class PublishControllerUI(base.BaseController):
 
     def __init__(self, name=None):
         self._store_connector = StoreConnector(config)
+        self.store_url = self._get_url(config, 'ckan.storepublisher.store_url')
+
+    # Ill reuse this small function from store_connector.py. The other option is calling it through _store_connector object,
+    # but i think is uglier that way
+    def _get_url(self, config, config_property):
+        url = config.get(config_property, '')
+        url = url[:-1] if url.endswith('/') else url
+        return url
+
+    def _sort_tags(tags):
+        listOfTags = []
+        # I know this could be too horrible but first I get a solution and then Ill refactor this
+        tagSorted = sorted(tags, key = lambda x: x['id'])
+        
+        listOfTags.append(tagSorted[0])
+        tagSorted.pop(0)
+
+        # Im sorry for this double loop, ill try to optimize this
+        for tag in tagSorted:
+            for item in listOfTags:
+                
+                if tag['isRoot']:
+                    listOfTags.append(tag)
+                    break
+                
+                if tag['parentId'] == item['id']:
+                    listOfTags.insert(listOfTags.index(item) + 1, tag)
+                    break
+
+        return listOfTags
 
     def publish(self, id, offering_info=None, errors=None):
 
@@ -61,14 +92,36 @@ class PublishControllerUI(base.BaseController):
 
         # Get the dataset and set template variables
         # It's assumed that the user can view a package if he/she can update it
+        
+        # endpoint tags http://siteurl:porturl/catalogManagement/category
+
         dataset = tk.get_action('package_show')(context, {'id': id})
+        
+        filters = {
+            'lifecycleStatus': 'Launched'
+        }
+        responseTags = requests.get('http://{}/catalogManagement/category'.format(self.store_url), params=filters)
+
+        # Checking that the request finished successfully
+        try:
+            responseTags.raise_for_status()
+        except Exception:
+            log.warn('Tags couldnt be loaded')
+            c.errors['Tags'] = ['Tags couldnt be loaded']
+
+        listOfTags = _sort_tags(responseTags.json())
+
+
         c.pkg_dict = dataset
         c.errors = {}
 
+        # Old code, ill keep it until im sure i dont need to see the previous structure
         # Tag string is needed in order to set the list of tags in the form
-        if 'tag_string' not in c.pkg_dict:
-            tags = [tag['name'] for tag in c.pkg_dict.get('tags', [])]
-            c.pkg_dict['tag_string'] = ','.join(tags)
+        #if 'tag_string' not in c.pkg_dict:
+        #    tags = [tag['name'] for tag in c.pkg_dict.get('tags', [])]
+        #    c.pkg_dict['tag_string'] = ','.join(tags)
+
+        c.pkg_dict['tag_string'] = ','.join(listOfTags)
 
         # when the data is provided
         if request.POST:

@@ -93,8 +93,7 @@ class StoreConnector(object):
                     'data': content_info['image_base64']
                 }
             } 
-            # TODO. Extract the url from the response body. Ill try with href, but im not sure, this should be something like
-            # url/documentManagement/attachment/idImage or something like that
+            # TODO. Make sure that we are sending the post request to the right url
             url = _make_request('post', '{}/api/offering/resources'.format(self.store_url), headers, body).json().get('Location')
             return url
 
