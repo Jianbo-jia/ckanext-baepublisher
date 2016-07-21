@@ -121,7 +121,7 @@ class PublishControllerUI(base.BaseController):
         #    tags = [tag['name'] for tag in c.pkg_dict.get('tags', [])]
         #    c.pkg_dict['tag_string'] = ','.join(tags)
 
-        c.pkg_dict['tag_string'] = ','.join(listOfTags)
+        c.pkg_dict['tag_string'] = ','.join(listOfTags['name'])
 
         # when the data is provided
         if request.POST:
