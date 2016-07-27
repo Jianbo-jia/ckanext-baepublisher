@@ -47,6 +47,7 @@ class StoreException(Exception):
     pass
 
 
+# http get https://biz-ecosystem.conwet.com/#/api/offering/resources/ 
 class StoreConnector(object):
 
     def __init__(self, config):
@@ -154,14 +155,11 @@ class StoreConnector(object):
         # This will be changed
         ######################################################################
 
-        if offering_info['license_title'] or offering_info['license_description']:
-            offering['offering_info']['legal'] = {
-                'title': offering_info['license_title'],
-                'text': offering_info['license_description']
-            }
-
-        offering['repository'] = self.repository
-        offering['open'] = offering_info['is_open']
+        #if offering_info['license_title'] or offering_info['license_description']:
+        #    offering['offering_info']['legal'] = {
+        #        'title': offering_info['license_title'],
+        #        'text': offering_info['license_description']
+        #    }
 
         #######################################################################
 
