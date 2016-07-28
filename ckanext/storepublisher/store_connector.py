@@ -63,6 +63,21 @@ class StoreConnector(object):
     def _get_dataset_url(self, dataset):
         return '%s/dataset/%s' % (self.site_url, dataset['id'])
 
+    def _upload_image(title, image):
+        # Request to upload the attachment
+        name = 'image_{}'.format(title)
+        headers = {'Accept': 'application/json'}
+        body = {
+            'contentType': 'image/png', # Double check this fields.
+            'isPublic': True,
+            'content': {
+                'name': name,
+                'data': image
+            }
+        }
+        url = _make_request('post', '{}/charging/api/assetManagement/assets/uploadJob'.format(self.store_url), headers, body).json().get('Location')
+        return url
+
     def _get_resource(self, dataset, content_info):
         c = plugins.toolkit.c
         resource = {}
@@ -80,26 +95,11 @@ class StoreConnector(object):
             'role': 'Owner'
         }]
 
-        def _upload_image():
-            # Request to upload the attachment
-            name = 'image_{}'.format(dataset['title'])
-            headers = {'Accept': 'application/json'}
-            body = {
-                'contentType': 'image/png', # Double check this fields.
-                'isPublic': True,
-                'content': {
-                    'name': name,
-                    'data': content_info['image_base64']
-                }
-            }
-            url = _make_request('post', '{}/api/offering/resources'.format(self.store_url), headers, body).json().get('Location')
-            return url
-
         resource['attachment'] = [{
             'type': 'Picture',
-            'url': 'EXAMPLEURL' # Im making this up in order to test the functionality of this method and not if the request
-                                # goes right or wrong or whatever.
-            #'url': _upload_image()
+            #'url': 'EXAMPLEURL' # Im making this up in order to test the functionality of this method and not if the request
+                                 # goes right or wrong or whatever.
+            'url': _upload_image(dataset['title'], content_info['image_base64'])
         }]
         resource['bundleProductSpecification'] = [{}]
         resource['productSpecificationRelationShip'] = [{}]

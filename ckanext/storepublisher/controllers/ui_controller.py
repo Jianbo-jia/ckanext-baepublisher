@@ -45,8 +45,7 @@ class PublishControllerUI(base.BaseController):
         self._store_connector = StoreConnector(config)
         self.store_url = self._get_url(config, 'ckan.storepublisher.store_url')
 
-    # Ill reuse this small function from store_connector.py. The other option is calling it through _store_connector object,
-    # but i think is uglier that way
+    # Ill reuse this small function from store_connector.py.
     def _get_url(self, config, config_property):
         url = config.get(config_property, '')
         url = url[:-1] if url.endswith('/') else url
@@ -100,6 +99,7 @@ class PublishControllerUI(base.BaseController):
         filters = {
             'lifecycleStatus': 'Launched'
         }
+        # If this doesnt work ill just make a bunch of tags manually just to test the overall functionality
         responseTags = requests.get('http://{}/catalogManagement/category'.format(self.store_url), params=filters)
 
         # Checking that the request finished successfully

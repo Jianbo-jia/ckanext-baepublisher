@@ -334,19 +334,19 @@ class StoreConnectorTest(unittest.TestCase):
 
     @parameterized.expand([
         ([], None),
-        ([{'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'active', 'name': 'a', 'version': '1.0'}], 0),
-        ([{'link': '%s/dataset/%s' % (BASE_STORE_URL, DATASET['id']), 'state': 'active', 'name': 'a', 'version': '1.0'}], None),
-        ([{'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id'] + 'a'), 'state': 'active', 'name': 'a', 'version': '1.0'}], None),
-        ([{'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'deleted', 'name': 'a', 'version': '1.0'}], None),
-        ([{'link': 'google.es', 'state': 'active'},
-          {'link': 'apple.es', 'state': 'active'},
-          {'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'deleted'}], None),
-        ([{'link': 'google.es', 'state': 'active'},
-          {'link': 'apple.es', 'state': 'active'},
-          {'link': '%s/dataset/%s' % (BASE_STORE_URL, DATASET['id']), 'state': 'active'}], None),
-        ([{'link': 'google.es', 'state': 'active'},
-          {'link': 'apple.es', 'state': 'active'},
-          {'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'active', 'name': 'a', 'version': '1.0'}], 2)
+        ([{'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'lifecycleStatus': 'active', 'name': 'a', 'version': '1.0'}], 0),
+        ([{'Location': '%s/dataset/%s' % (BASE_STORE_URL, DATASET['id']), 'lifecycleStatus': 'active', 'name': 'a', 'version': '1.0'}], None),
+        ([{'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id'] + 'a'), 'lifecycleStatus': 'active', 'name': 'a', 'version': '1.0'}], None),
+        ([{'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'lifecycleStatus': 'deleted', 'name': 'a', 'version': '1.0'}], None),
+        ([{'Location': 'google.es', 'lifecycleStatus': 'active'},
+          {'Location': 'apple.es', 'lifecycleStatus': 'active'},
+          {'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'lifecycleStatus': 'deleted'}], None),
+        ([{'Location': 'google.es', 'lifecycleStatus': 'active'},
+          {'Location': 'apple.es', 'lifecycleStatus': 'active'},
+          {'Location': '%s/dataset/%s' % (BASE_STORE_URL, DATASET['id']), 'lifecycleStatus': 'active'}], None),
+        ([{'Location': 'google.es', 'lifecycleStatus': 'active'},
+          {'Location': 'apple.es', 'lifecycleStatus': 'active'},
+          {'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'lifecycleStatus': 'active', 'name': 'a', 'version': '1.0'}], 2)
 
     ])
     def test_get_existing_resource(self, current_user_resources, id_correct_resource):
@@ -368,7 +368,6 @@ class StoreConnectorTest(unittest.TestCase):
 
         # Call the function and check the result
         dataset = DATASET.copy()
-        dataset['private'] = True
         self.assertEquals(expected_resource, self.instance._get_existing_resource(dataset))
 
         # Update Acquire URL method is called (when the dataset is registered as resource in the Store)
@@ -376,10 +375,15 @@ class StoreConnectorTest(unittest.TestCase):
             self.instance._update_acquire_url.assert_called_once_with(dataset, current_user_resources[id_correct_resource])
 
     @parameterized.expand([
-        (True,),
-        (False,)
+        ({'Location': 'EXAMPLEURL', 'success': True}),
+        ({'Location': '', 'success': False})
     ])
-    def test_create_resource(self, private):
+    def test_create_resource(self, location):
+        #set dependencies
+        req = MagicMock()
+        req.json = MagicMock(return_value = location)
+        self.instance._upload_image(return_value = req)
+
         c = store_connector.plugins.toolkit.c
         c.user = 'provider name'
         resource = {
