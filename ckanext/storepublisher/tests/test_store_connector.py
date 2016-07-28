@@ -383,16 +383,61 @@ class StoreConnectorTest(unittest.TestCase):
         c = store_connector.plugins.toolkit.c
         c.user = 'provider name'
         resource = {
-            'provider': store_connector.plugins.toolkit.c.user,
+            'productNumber': DATASET['id'],
             'name': 'resource name',
             'version': 'resource version',
-            'link': 'example link'
+            'description': DATASET['notes'],
+            'isBundle': False,
+            'brand': c.user,
+            'lifecycleStatus': 'Launched',
+            'validFor': {},
+            'relatedParty': [{
+                'id': c.user,
+                'href': ('{}/DSPartyManagement/api/partyManagement/v2/individual/{}'.format(BASE_STORE_URL, c.user)),
+                'role': 'Owner'
+            }],
+            'attachment': {
+                'type': 'Picture',
+                # This url is a problem
+                'url': 'EXAMPLEURL'
+            },
+            'bundleProductSpecification': [{}],
+            'productSpecificationRelationShip': [{}],
+            'serviceSpecification': [{}],
+            'resourceSpecification': [{}],
+            'resourceSpecCharacteristic': [{
+                'configurable': False,
+                'name': 'Media Type',
+                'value': DATASET['type']
+            },
+            {
+                'configurable': False,
+                'name': 'Asset Type',
+                'value': 'CKAN Dataset'
+            },
+            {
+                'configurable': False,
+                'name': 'Location',
+                'value': '{}/dataset/{}'.format(BASE_SITE_URL, DATASET['id'])
+            }]
         }
 
         expected_resource = {
-            'provider': store_connector.plugins.toolkit.c.user,
             'name': resource['name'],
-            'version': resource['version']
+            'version': resource['version'],
+            'productNumber': resource['id'],
+            'description': resource['description'],
+            'isBundle': resource['isBundle'],
+            'brand': resource['brand'],
+            'lifecycleStatus': resource['lifecycleStatus'],
+            'validFor': resource['validFor'],
+            'relatedParty': resource['relatedParty'],
+            'attachment': resource['attachment'],
+            'bundleProductSpecification': resource['bundleProductSpecification'],
+            'productSpecificationRelationShip': resource['productSpecificationRelationShip'],
+            'serviceSpecification': resource['serviceSpecification'],
+            'resourceSpecification': resource['resourceSpecification'],
+            'resourceSpecCharacteristic': resource['resourceSpecCharacteristic']
         }
 
         self.instance._get_resource = MagicMock(return_value=resource)
@@ -401,16 +446,17 @@ class StoreConnectorTest(unittest.TestCase):
 
         # Call the function and check that we recieve the correct result
         dataset = DATASET.copy()
-        dataset['private'] = private
-        self.assertEquals(expected_resource, self.instance._create_resource(dataset, {}))
+        dataset['type'] = 'testField'
+        content_info = {'version': '1.7', 'image_base64': 'IMGB4/png/data'}
+        self.assertEquals(expected_resource, self.instance._create_resource(dataset, content_info))
 
         # Assert that the methods has been called
-        self.instance._get_resource.assert_called_once_with(dataset)
+        self.instance._get_resource.assert_called_once_with(dataset, content_info)
         headers = {'Content-Type': 'application/json'}
-        self.instance._make_request.assert_called_once_with('post', '%s/api/offering/resources' % BASE_STORE_URL, headers, json.dumps(resource))
+        self.instance._make_request.assert_called_once_with('post', '%s/api/offering/resources' % BASE_STORE_URL, headers, json.dumps(expected_resource))
 
         # Check that the acquire URL has been updated
-        self.instance._update_acquire_url.assert_called_once_with(dataset, resource)
+        self.instance._update_acquire_url.assert_called_once_with(dataset, expected_resource)
 
     @parameterized.expand([
         (True,),

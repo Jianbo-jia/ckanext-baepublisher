@@ -64,10 +64,8 @@ class StoreConnector(object):
         return '%s/dataset/%s' % (self.site_url, dataset['id'])
 
     def _get_resource(self, dataset, content_info):
-        log.info(content_info)
         c = plugins.toolkit.c
         resource = {}
-        # Page 23 of the pdf document: TODO
         resource['productNumber'] = dataset['id']
         resource['version'] = content_info['version']
         resource['name'] = dataset['title']
@@ -93,15 +91,16 @@ class StoreConnector(object):
                     'name': name,
                     'data': content_info['image_base64']
                 }
-            } 
-            # TODO. Make sure that we are sending the post request to the right url
+            }
             url = _make_request('post', '{}/api/offering/resources'.format(self.store_url), headers, body).json().get('Location')
             return url
 
         resource['attachment'] = [{
             'type': 'Picture',
-            'url': _upload_image()
-        }] # TODO: image or other attachments
+            'url': 'EXAMPLEURL' # Im making this up in order to test the functionality of this method and not if the request
+                                # goes right or wrong or whatever.
+            #'url': _upload_image()
+        }]
         resource['bundleProductSpecification'] = [{}]
         resource['productSpecificationRelationShip'] = [{}]
         resource['serviceSpecification'] = [{}]
