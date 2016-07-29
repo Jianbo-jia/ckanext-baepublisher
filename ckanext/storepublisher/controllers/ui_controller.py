@@ -43,13 +43,7 @@ class PublishControllerUI(base.BaseController):
 
     def __init__(self, name=None):
         self._store_connector = StoreConnector(config)
-        self.store_url = self._get_url(config, 'ckan.storepublisher.store_url')
-
-    # Ill reuse this small function from store_connector.py.
-    def _get_url(self, config, config_property):
-        url = config.get(config_property, '')
-        url = url[:-1] if url.endswith('/') else url
-        return url
+        self.store_url = self._store_connector.store_url
 
     def _sort_tags(tags):
         listOfTags = []
@@ -93,6 +87,9 @@ class PublishControllerUI(base.BaseController):
         # It's assumed that the user can view a package if he/she can update it
         
         # endpoint tags http://siteurl:porturl/catalogManagement/category
+
+        print("AHORITA TIENES LA STORE URL")
+        print(self.store_url)
 
         dataset = tk.get_action('package_show')(context, {'id': id})
         
