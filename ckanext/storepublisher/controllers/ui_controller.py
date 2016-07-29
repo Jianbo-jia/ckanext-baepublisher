@@ -67,6 +67,21 @@ class PublishControllerUI(base.BaseController):
 
         return listOfTags
 
+    def _get_tags():
+        filters = {
+            'lifecycleStatus': 'Launched'
+        }
+        # If this doesnt work ill just make a bunch of tags manually just to test the overall functionality
+        responseTags = requests.get('http://{}/catalogManagement/category'.format(self.store_url), params=filters)
+
+        # Checking that the request finished successfully
+        try:
+            responseTags.raise_for_status()
+        except Exception:
+            log.warn('Tags couldnt be loaded')
+            c.errors['Tags'] = ['Tags couldnt be loaded']
+        return responseTags.json()
+    
     def publish(self, id, offering_info=None, errors=None):
 
         c = plugins.toolkit.c
@@ -88,26 +103,9 @@ class PublishControllerUI(base.BaseController):
         
         # endpoint tags http://siteurl:porturl/catalogManagement/category
 
-        print("AHORITA TIENES LA STORE URL")
-        print(self.store_url)
-
         dataset = tk.get_action('package_show')(context, {'id': id})
         
-        filters = {
-            'lifecycleStatus': 'Launched'
-        }
-        # If this doesnt work ill just make a bunch of tags manually just to test the overall functionality
-        responseTags = requests.get('http://{}/catalogManagement/category'.format(self.store_url), params=filters)
-
-        # Checking that the request finished successfully
-        try:
-            responseTags.raise_for_status()
-        except Exception:
-            log.warn('Tags couldnt be loaded')
-            c.errors['Tags'] = ['Tags couldnt be loaded']
-
-        listOfTags = _sort_tags(responseTags.json())
-
+        listOfTags = _sort_tags(_get_tags())
 
         c.pkg_dict = dataset
         c.errors = {}

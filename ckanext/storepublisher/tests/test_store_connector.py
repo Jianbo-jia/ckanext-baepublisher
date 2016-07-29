@@ -526,7 +526,7 @@ class StoreConnectorTest(unittest.TestCase):
 
             self.instance._get_existing_resource.assert_called_once_with(DATASET)
             if not resource_exists:
-                self.instance._create_resource.assert_called_once_with(DATASET)
+                self.instance._create_resource.assert_called_once_with(DATASET, {'version': OFFERING_INFO_BASE['version'], 'image_base64': OFFERING_INFO_BASE['image_base64']})
             self.instance._get_offering.assert_called_once_with(OFFERING_INFO_BASE, resource)
             self.instance._get_tags.assert_called_once_with(OFFERING_INFO_BASE)
 
