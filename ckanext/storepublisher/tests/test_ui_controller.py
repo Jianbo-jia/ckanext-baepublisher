@@ -30,7 +30,6 @@ MISSING_ERROR = 'This filed is required to publish the offering'
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 filepath = os.path.join(__dir__, '../assets/logo-ckan.png')
-BASE_STORE_URL = 'https://store.example.com:7458'
 
 with open(filepath, 'rb') as f:
     LOGO_CKAN_B64 = base64.b64encode(f.read())
@@ -57,10 +56,6 @@ class UIControllerTest(unittest.TestCase):
         self._store_connector_instance = MagicMock()
         controller.StoreConnector = MagicMock(return_value=self._store_connector_instance)
 
-        self.config = {
-            'ckan.storepublisher.store_url': BASE_STORE_URL,
-        }
-        
         # Create the plugin
         self.instanceController = controller.PublishControllerUI()
 
@@ -70,46 +65,50 @@ class UIControllerTest(unittest.TestCase):
     @parameterized.expand([
         # (False, False, {},),
         # # Test missing fields
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id'},),
-        (True, {'version': '1.0', 'pkg_id': 'package_id'}),
-        (True, {'name': 'a', 'pkg_id': 'package_id'}),
-        (True, {'pkg_id': 'package_id'}),
-        (True, {'name': 'a', 'version': '1.0'}),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id'},),
+        (True,  False, {'version': '1.0', 'pkg_id': 'package_id'}),
+        (True,  False, {'name': 'a', 'pkg_id': 'package_id'}),
+        (True,  False, {'pkg_id': 'package_id'}),
+        (True,  False, {'name': 'a', 'version': '1.0'}),
         # Test invalid prices
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'price': 'a'},),
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'price': '5.a'},),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'price': 'a'},),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'price': '5.a'},),
         # Test open offerings (open offerings must not contain private datasets)
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id'},),
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id'},),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'open': ''},),
+        (True,  True,  {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'open': ''},),
         # Public datastets cannot be offering in paid offerings
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'price': '1.0'},),
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'price': '1.0'},),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'price': '1.0'},),
+        (True,  True,  {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'price': '1.0'},),
         # 'image_upload' == '' happens when the user has not selected a file, so the default one must be used
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'image_upload': ''},),
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'image_upload': MagicMock()},),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'image_upload': ''},),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'image_upload': MagicMock()},),
         # If 'update_acquire_url' is in the request content, the acquire_url should be updated
         # only when the offering has been published correctly
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'update_acquire_url': ''},),
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id'},                               controller.StoreException('Impossible to connect with the Store')),
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'update_acquire_url': ''},     controller.StoreException('Impossible to connect with the Store')),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'update_acquire_url': ''},),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id'},                               controller.StoreException('Impossible to connect with the Store')),
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'update_acquire_url': ''},     controller.StoreException('Impossible to connect with the Store')),
         # Requests with the fields not tested above
         # Test with and without tags
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'description': 'Example Description',
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'description': 'Example Description',
                         'license_title': 'cc', 'license_description': 'Desc', 'tag_string': 'tag1,tag2,tag3'}),
-        (True, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'description': 'Example Description',
+        (True,  False, {'name': 'a', 'version': '1.0', 'pkg_id': 'package_id', 'description': 'Example Description',
                         'license_title': 'cc', 'license_description': 'Desc', 'tag_string': ''}),
         # Request will all the fields
-        (True, {'name': 'A B C D', 'version': '1.0', 'pkg_id': 'package_id', 'description': 'Example Description',
+        (True,  False, {'name': 'A B C D', 'version': '1.0', 'pkg_id': 'package_id', 'description': 'Example Description',
                         'license_title': 'cc', 'license_description': 'Desc', 'tag_string': 'tag1,tag2,tag3',
                         'price': '1.1', 'image_upload': MagicMock(), 'update_acquire_url': ''}),
     ])
-    def test_publish(self, allowed, post_content={}, create_offering_res='http://some_url.com'):
+    def test_publish(self, allowed, private, post_content={}, create_offering_res='http://some_url.com'):
 
         errors = {}
-        current_package = {'tags': [{'name': 'tag1'}, {'name': 'tag2'}], 'acquire_url': 'http://example.com'}
+        current_package = {'tags': [{'name': 'tag1'}, {'name': 'tag2'}], 'private': private, 'acquire_url': 'http://example.com'}
         package_show = MagicMock(return_value=current_package)
         package_update = MagicMock()
+<<<<<<< HEAD
         self.instanceController = MagicMock(return_value = [{'name': 'tag1', 'isRoot': True, 'id': 1, 'parentID': 1}, {'name': 'tag2', 'isRoot': True, 'id': 2, 'parentID': 2}, {'name': 'tag3', 'isRoot': True, 'id': 3, 'parentID': 3}])
+=======
+        self.instanceController._get_tags = MagicMock(return_value = [{'name': 'tag1', 'isRoot': True, 'id': 1, 'parentID': 1}, {'name': 'tag2', 'isRoot': True, 'id': 2, 'parentID': 2}, {'name': 'tag3', 'isRoot': True, 'id': 3, 'parentID': 3}])
+>>>>>>> 98a50f8... Resources are now called Products. Tests now follow this naming rule
 
         def _get_action_side_effect(action):
             if action == 'package_show':
@@ -158,12 +157,15 @@ class UIControllerTest(unittest.TestCase):
             if price != '':
                 try:
                     real_price = float(post_content['price'])
-                    if real_price < 0:
-                        errors['Price'] = ['You cannot set a negative price']
+                    if real_price > 0 and not private:
+                        errors['Price'] = ['You cannot set a price to a dataset that is public since everyone can access it']
                 except Exception:
                     errors['Price'] = ['"%s" is not a valid number' % price]
             else:
                 real_price = 0.0
+
+            if 'open' in post_content and private:
+                errors['Open'] = ['Private Datasets cannot be offered as Open Offerings']
 
             if errors:
                 # If the parameters are invalid, the function create_offering must not be called

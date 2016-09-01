@@ -110,14 +110,6 @@ class PublishControllerUI(base.BaseController):
         c.pkg_dict = dataset
         c.errors = {}
 
-        # Old code, ill keep it until im sure i dont need to see the previous structure
-        # Tag string is needed in order to set the list of tags in the form
-        #if 'tag_string' not in c.pkg_dict:
-        #    tags = [tag['name'] for tag in c.pkg_dict.get('tags', [])]
-        #    c.pkg_dict['tag_string'] = ','.join(tags)
-
-        c.pkg_dict['tag_string'] = ','.join(listOfTags['name'])
-
         # when the data is provided
         if request.POST:
             offering_info = {}
@@ -132,7 +124,7 @@ class PublishControllerUI(base.BaseController):
             # Get tags
             # ''.split(',') ==> ['']
             tag_string = request.POST.get('tag_string', '')
-            offering_info['tags'] = [] if tag_string == '' else tag_string.split(',')
+            offering_info['tags'] = listOfTags
 
             # Read image
             # 'image_upload' == '' if the user has not set a file

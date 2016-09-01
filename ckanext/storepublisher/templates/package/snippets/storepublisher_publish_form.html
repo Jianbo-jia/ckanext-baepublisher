@@ -5,7 +5,7 @@
 
 {% set name = offering['name'] if offering else data.title %}
 {% set description = offering['description'] if offering else data.notes %}
-{% set tags = ','.join(offering['tags']) if offering else data.tag_string %}
+{% set tags = offering['tags'] if offering else data.tag_string %}
 {% set version =  offering['version'] if offering else '' %}
 {% set license_description = offering['license_description'] if offering else '' %}
 {% set price = offering['price'] if offering else '' %}
@@ -48,8 +48,11 @@ then itself be extended to add/remove blocks of functionality. #}
   {% endblock %}
 
   {% block offering_tags %}
+    {% for tag in tags %}
+    <option value=""{{tag.id}"">{{tag.}}</option>
+    TODO
     {% set tag_attrs = {'data-module': 'autocomplete', 'data-module-tags': '', 'data-module-source': '/api/2/util/tag/autocomplete?incomplete=?'} %}
-    {{ form.input('tag_string', id='field-tags', label=_('Tags'), placeholder=_('eg. economy, mental health, government'), value=tags, error=errors.tags, classes=['control-full'], attrs=tag_attrs) }}
+    {{ form.select('tag_string', id='field-tags', label=_('Tags'), placeholder=_('eg. economy, mental health, government'), value=tags, error=errors.tags, classes=['control-full'], attrs=tag_attrs) }}
   {% endblock %}
 
   {% block offering_version %}

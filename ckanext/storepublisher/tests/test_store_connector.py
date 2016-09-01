@@ -74,7 +74,6 @@ class StoreConnectorTest(unittest.TestCase):
         self.config = {
             'ckan.site_url': BASE_SITE_URL,
             'ckan.storepublisher.store_url': BASE_STORE_URL,
-            'ckan.storepublisher.repository': 'Example Repo'
         }
 
         self.instance = store_connector.StoreConnector(self.config)
@@ -112,7 +111,6 @@ class StoreConnectorTest(unittest.TestCase):
         config = {
             'ckan.site_url': site_url,
             'ckan.storepublisher.store_url': store_url,
-            'ckan.storepublisher.repository': 'Example Repo'
         }
 
         instance = store_connector.StoreConnector(config)
@@ -123,7 +121,7 @@ class StoreConnectorTest(unittest.TestCase):
         (DATASET['title'], DATASET['title']),
         (u'ábcdé! fgh?=monitor', 'abcde fgh monitor')
     ])
-    def test_get_resource(self, initial_name, expected_name):
+    def test_get_product(self, initial_name, expected_name):
         dataset = DATASET.copy()
         dataset['title'] = initial_name
         resource = self.instance._get_resource(dataset, {})
@@ -159,7 +157,6 @@ class StoreConnectorTest(unittest.TestCase):
         self.assertEquals(OFFERING_INFO_BASE['description'], offering['offering_info']['description'])
         self.assertEquals(OFFERING_INFO_BASE['license_title'], offering['offering_info']['legal']['title'])
         self.assertEquals(OFFERING_INFO_BASE['license_description'], offering['offering_info']['legal']['text'])
-        self.assertEquals(self.config['ckan.storepublisher.repository'], offering['repository'])
         self.assertEquals(OFFERING_INFO_BASE['is_open'], offering['open'])
 
         # Check price
@@ -332,24 +329,24 @@ class StoreConnectorTest(unittest.TestCase):
         else:
             self.assertEquals(0, package_update.call_count)
 
-    @parameterized.expand([
+    @parameterized.expand( [
         ([], None),
-        ([{'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'lifecycleStatus': 'active', 'name': 'a', 'version': '1.0'}], 0),
-        ([{'Location': '%s/dataset/%s' % (BASE_STORE_URL, DATASET['id']), 'lifecycleStatus': 'active', 'name': 'a', 'version': '1.0'}], None),
-        ([{'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id'] + 'a'), 'lifecycleStatus': 'active', 'name': 'a', 'version': '1.0'}], None),
-        ([{'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'lifecycleStatus': 'deleted', 'name': 'a', 'version': '1.0'}], None),
-        ([{'Location': 'google.es', 'lifecycleStatus': 'active'},
-          {'Location': 'apple.es', 'lifecycleStatus': 'active'},
-          {'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'lifecycleStatus': 'deleted'}], None),
-        ([{'Location': 'google.es', 'lifecycleStatus': 'active'},
-          {'Location': 'apple.es', 'lifecycleStatus': 'active'},
-          {'Location': '%s/dataset/%s' % (BASE_STORE_URL, DATASET['id']), 'lifecycleStatus': 'active'}], None),
-        ([{'Location': 'google.es', 'lifecycleStatus': 'active'},
-          {'Location': 'apple.es', 'lifecycleStatus': 'active'},
-          {'Location': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'lifecycleStatus': 'active', 'name': 'a', 'version': '1.0'}], 2)
+        ([{'lifecycleStatus': 'Active', 'name': 'a', 'version': '1.0', 'productSpecCharacteristic': [{}, {}, {'Location': '{}/dataset/{}'.format(BASE_SITE_URL, DATASET['id']) }] }], 0),
+        ([{'lifecycleStatus': 'Active', 'name': 'a', 'version': '1.0', 'productSpecCharacteristic': [{}, {}, {'Location': '{}/dataset/{}'.format(BASE_STORE_URL, DATASET['id']) }] }], None),
+        ([{'lifecycleStatus': 'Active', 'name': 'a', 'version': '1.0', 'productSpecCharacteristic': [{}, {}, {'Location': '{}/dataset/{}'.format(BASE_SITE_URL, DATASET['id']+'a') }] }], None),
+        ([{'lifecycleStatus': 'Obsolete', 'name': 'a', 'version': '1.0', 'productSpecCharacteristic': [{}, {}, {'Location': '{}/dataset/{}'.format(BASE_SITE_URL, DATASET['id']) }] }], None),
+        ([{'lifecycleStatus': 'Active', 'productSpecCharacteristic': [{}, {}, {'Location': 'google.es'}] },
+          {'lifecycleStatus': 'Active', 'productSpecCharacteristic': [{}, {}, {'Location': 'apple.es'}] },
+          {'lifecycleStatus': 'Obsolete', 'productSpecCharacteristic': [{}, {}, {'Location': '{}/dataset/{}'.format(BASE_SITE_URL, DATASET['id']) }] }], None),
+        ([{'lifecycleStatus': 'Active', 'productSpecCharacteristic': [{}, {}, {'Location': 'google.es'}] },
+          {'lifecycleStatus': 'Active', 'productSpecCharacteristic': [{}, {}, {'Location': 'apple.es'}] },
+          {'lifecycleStatus': 'Active', 'productSpecCharacteristic': [{}, {}, {'Location': '{}/dataset/{}'.format(BASE_STORE_URL, DATASET['id']) }] }], None),
+        ([{'lifecycleStatus': 'Launched', 'productSpecCharacteristic': [{}, {}, {'Location': 'google.es'}] },
+          {'lifecycleStatus': 'Launched', 'productSpecCharacteristic': [{}, {}, {'Location': 'apple.es'}] },
+          {'lifecycleStatus': 'Launched', 'name': 'a', 'version': '1.0', 'productSpecCharacteristic': [{}, {}, {'Location': '{}/dataset/{}'.format(BASE_SITE_URL, DATASET['id']) }] }], 2)
 
     ])
-    def test_get_existing_resource(self, current_user_resources, id_correct_resource):
+    def test_get_existing_product(self, current_user_resources, id_correct_resource):
         # Set up the test and its dependencies
         req = MagicMock()
         req.json = MagicMock(return_value=current_user_resources)
@@ -359,7 +356,7 @@ class StoreConnectorTest(unittest.TestCase):
         # Get the expected result
         if id_correct_resource is not None:
             expected_resource = {
-                'provider': store_connector.plugins.toolkit.c.user,
+                'href': current_user_resources[id_correct_resource]['href'],
                 'name': current_user_resources[id_correct_resource]['name'],
                 'version': current_user_resources[id_correct_resource]['version']
             }
@@ -376,13 +373,13 @@ class StoreConnectorTest(unittest.TestCase):
 
     @parameterized.expand([
         ({'Location': 'EXAMPLEURL', 'success': True}),
-        ({'Location': '', 'success': False})
+        ({'Location': 'EXAMPLEURL', 'success': False})
     ])
-    def test_create_resource(self, location):
+    def test_create_product(self, location):
         #set dependencies
         req = MagicMock()
         req.json = MagicMock(return_value = location)
-        self.instance._upload_image(return_value = req)
+        self.instance._upload_image = MagicMock(return_value = req)
 
         c = store_connector.plugins.toolkit.c
         c.user = 'provider name'
@@ -402,7 +399,6 @@ class StoreConnectorTest(unittest.TestCase):
             }],
             'attachment': {
                 'type': 'Picture',
-                # This url is a problem
                 'url': 'EXAMPLEURL'
             },
             'bundleProductSpecification': [{}],
@@ -500,7 +496,8 @@ class StoreConnectorTest(unittest.TestCase):
         resource = {'resource': 2}
         tags = {'tags': ['dataset']}
         resource = {
-            'provider': 'provider name',
+            'href': 'href location'
+            'id': 'resource id',
             'name': 'resource name',
             'version': 'resource version'
         }
@@ -522,6 +519,7 @@ class StoreConnectorTest(unittest.TestCase):
 
             name = OFFERING_INFO_BASE['name'].replace(' ', '%20')
             expected_result = BASE_STORE_URL + '/offering/' + user_nickname + '/' + name + '/' + OFFERING_INFO_BASE['version']
+#           expected_result = BASE_STORE_URL + '/DSProductCatalog/api/catalogManagement/v2/productOffering/:' + resource.get('id')
             self.assertEquals(expected_result, result)
 
             self.instance._get_existing_resource.assert_called_once_with(DATASET)
@@ -548,43 +546,3 @@ class StoreConnectorTest(unittest.TestCase):
         except store_connector.StoreException as e:
             self.instance._rollback.assert_called_once_with(OFFERING_INFO_BASE, offering_created)
             self.assertEquals(e.message, exception_text)
-
-    @parameterized.expand([
-        ([], []),
-        ([{'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'active', 'name': 'a', 'version': '1.0'}], [0]),
-        ([{'link': '%s/dataset/%s' % (BASE_STORE_URL, DATASET['id']), 'state': 'active', 'name': 'a', 'version': '1.0'}], []),
-        ([{'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id'] + 'a'), 'state': 'active', 'name': 'a', 'version': '1.0'}], []),
-        ([{'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'deleted', 'name': 'a', 'version': '1.0'}], []),
-        ([{'link': 'google.es', 'state': 'active'},
-          {'link': 'apple.es', 'state': 'active'},
-          {'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'deleted'}], []),
-        ([{'link': 'google.es', 'state': 'active'},
-          {'link': 'apple.es', 'state': 'active'},
-          {'link': '%s/dataset/%s' % (BASE_STORE_URL, DATASET['id']), 'state': 'active'}], []),
-        ([{'link': 'google.es', 'state': 'active'},
-          {'link': 'apple.es', 'state': 'active'},
-          {'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'active', 'name': 'a', 'version': '1.0'}], [2]),
-        ([{'link': 'google.es', 'state': 'active'},
-          {'link': 'apple.es', 'state': 'active'},
-          {'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'active', 'name': 'a', 'version': '1.0'},
-          {'link': '%s/dataset/%s' % (BASE_SITE_URL, DATASET['id']), 'state': 'active', 'name': 'b', 'version': '5.7'}], [2, 3])
-    ])
-    def test_delete_attached_resources(self, current_user_resources, valid_resources):
-
-        # Set up the test and its dependencies
-        req = MagicMock()
-        req.json = MagicMock(return_value=current_user_resources)
-        self.instance._make_request = MagicMock(return_value=req)
-
-        user_nickname = 'smg'
-        store_connector.plugins.toolkit.c.user = user_nickname
-
-        # Call the function
-        dataset = DATASET.copy()
-        dataset['private'] = True
-        self.instance.delete_attached_resources(dataset)
-
-        for valid_resource_id in valid_resources:
-            resource = current_user_resources[valid_resource_id]
-            self.instance._make_request.assert_any_call('delete', '%s/api/offering/resources/%s/%s/%s' %
-                                                        (BASE_STORE_URL, user_nickname, resource['name'], resource['version']))
