@@ -48,11 +48,9 @@ then itself be extended to add/remove blocks of functionality. #}
   {% endblock %}
 
   {% block offering_tags %}
-    {% for tag in tags %}
-    <option value=""{{tag.id}"">{{tag.}}</option>
-    TODO
-    {% set tag_attrs = {'data-module': 'autocomplete', 'data-module-tags': '', 'data-module-source': '/api/2/util/tag/autocomplete?incomplete=?'} %}
-    {{ form.select('tag_string', id='field-tags', label=_('Tags'), placeholder=_('eg. economy, mental health, government'), value=tags, error=errors.tags, classes=['control-full'], attrs=tag_attrs) }}
+  {% set tag_attrs = {'data-module': 'autocomplete', 'data-module-tags': '',
+  'data-module-source': '/api/2/util/tag/autocomplete?incomplete=?'} %}
+  {{ form.select('tag_string', id='field-tags', label=_('Tags'), placeholder=_('eg. economy, mental health, government'), value=tags, error=errors.tags, classes=['control-full'], attrs=tag_attrs) }}
   {% endblock %}
 
   {% block offering_version %}

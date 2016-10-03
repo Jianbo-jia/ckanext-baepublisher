@@ -24,7 +24,7 @@ import ckan.model as model
 import ckan.plugins as plugins
 import logging
 import os
-import requests # I think that this is a new dependency but we need it
+import requests
 
 from ckanext.storepublisher.store_connector import StoreConnector, StoreException
 from ckan.common import request
@@ -47,20 +47,19 @@ class PublishControllerUI(base.BaseController):
 
     def _sort_tags(tags):
         listOfTags = []
-        # I know this could be too horrible but first I get a solution and then Ill refactor this
-        tagSorted = sorted(tags, key = lambda x: x['id'])
-        
+        # I know this could be too horrible but first
+        # ill get a solution and then Ill refactor this
+        tagSorted = sorted(tags, key=lambda x: x['id'])
+
         listOfTags.append(tagSorted[0])
         tagSorted.pop(0)
 
         # Im sorry for this double loop, ill try to optimize this
         for tag in tagSorted:
+            if tag['isRoot']:
+                listOfTags.append(tag)
+                break
             for item in listOfTags:
-                
-                if tag['isRoot']:
-                    listOfTags.append(tag)
-                    break
-                
                 if tag['parentId'] == item['id']:
                     listOfTags.insert(listOfTags.index(item) + 1, tag)
                     break
@@ -81,7 +80,7 @@ class PublishControllerUI(base.BaseController):
             log.warn('Tags couldnt be loaded')
             c.errors['Tags'] = ['Tags couldnt be loaded']
         return responseTags.json()
-    
+
     def publish(self, id, offering_info=None, errors=None):
 
         c = plugins.toolkit.c
@@ -100,11 +99,11 @@ class PublishControllerUI(base.BaseController):
 
         # Get the dataset and set template variables
         # It's assumed that the user can view a package if he/she can update it
-        
+
         # endpoint tags http://siteurl:porturl/catalogManagement/category
 
         dataset = tk.get_action('package_show')(context, {'id': id})
-        
+
         listOfTags = _sort_tags(_get_tags())
 
         c.pkg_dict = dataset
@@ -121,10 +120,16 @@ class PublishControllerUI(base.BaseController):
             offering_info['version'] = request.POST.get('version', '')
             offering_info['is_open'] = 'open' in request.POST
 
-            # Get tags
-            # ''.split(',') ==> ['']
-            tag_string = request.POST.get('tag_string', '')
-            offering_info['tags'] = listOfTags
+            # Get tags in the expected format of the form select field
+            requiredFields = ['id', 'name']
+            tags = []
+            for i in listOfTags:
+                tags.append({x: i[x] for x in requiredFields})
+            for tag in tags:
+                tag['text'] = tag.pop('name')
+                tag['value'] = tag.pop('id')
+
+            offering_info['tags'] = tags
 
             # Read image
             # 'image_upload' == '' if the user has not set a file
@@ -173,8 +178,7 @@ class PublishControllerUI(base.BaseController):
                 try:
                     offering_url = self._store_connector.create_offering(dataset, offering_info)
 
-                    helpers.flash_success(tk._('Offering <a href="%s" target="_blank">%s</a> published correctly.' %
-                                               (offering_url, offering_info['name'])), allow_html=True)
+                    helpers.flash_success(tk._('Offering <a href="%s" target="_blank">%s</a> published correctly.' % (offering_url, offering_info['name'])), allow_html=True)
 
                     # FIX: When a redirection is performed, the success message is not shown
                     # response.status_int = 302
