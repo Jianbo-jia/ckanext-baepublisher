@@ -45,12 +45,14 @@ class PublishControllerUI(base.BaseController):
         self._store_connector = StoreConnector(config)
         self.store_url = self._store_connector.store_url
 
-    def _sort_tags(tags):
+    def _sort_categories(self, tags):
         listOfTags = []
         # I know this could be too horrible but first
         # ill get a solution and then Ill refactor this
-        tagSorted = sorted(tags, key=lambda x: x['id'])
+        tagSorted = sorted(tags, key=lambda x: int(x['id']))
 
+        if not len(tagSorted):
+            return listOfTags
         listOfTags.append(tagSorted[0])
         tagSorted.pop(0)
 
@@ -58,20 +60,21 @@ class PublishControllerUI(base.BaseController):
         for tag in tagSorted:
             if tag['isRoot']:
                 listOfTags.append(tag)
-                break
+                continue
             for item in listOfTags:
                 if tag['parentId'] == item['id']:
                     listOfTags.insert(listOfTags.index(item) + 1, tag)
                     break
-
         return listOfTags
 
-    def _get_tags():
+    # TODO: generaliza los dos gets
+    def _get_tags(self):
+        c = plugins.toolkit.c
         filters = {
             'lifecycleStatus': 'Launched'
         }
         # If this doesnt work ill just make a bunch of tags manually just to test the overall functionality
-        responseTags = requests.get('http://{}/catalogManagement/category'.format(self.store_url), params=filters)
+        responseTags = requests.get('{}/DSProductCatalog/api/catalogManagement/v2/category'.format(self.store_url), params=filters)
 
         # Checking that the request finished successfully
         try:
@@ -80,6 +83,23 @@ class PublishControllerUI(base.BaseController):
             log.warn('Tags couldnt be loaded')
             c.errors['Tags'] = ['Tags couldnt be loaded']
         return responseTags.json()
+
+    def _get_catalogs(self):
+        c = plugins.toolkit.c
+        filters = {
+            'lifecycleStatus': 'Launched',
+            'relatedParty': c.user
+        }
+
+        responseCatalog = requests.get('{}/DSProductCatalog/api/catalogManagement/v2/catalog'.format(self.store_url), params=filters)
+
+        # Checking that the request finished successfully
+        try:
+            responseCatalog.raise_for_status()
+        except Exception:
+            log.warn('Tags couldnt be loaded')
+            c.errors['Tags'] = ['category couldnt be loaded']
+        return responseCatalog.json()
 
     def publish(self, id, offering_info=None, errors=None):
 
@@ -104,11 +124,24 @@ class PublishControllerUI(base.BaseController):
 
         dataset = tk.get_action('package_show')(context, {'id': id})
 
-        listOfTags = _sort_tags(_get_tags())
-
         c.pkg_dict = dataset
         c.errors = {}
 
+        # Get tags in the expected format of the form select field
+        requiredFields = ['id', 'name']
+        listOfTags = self._sort_categories(self._get_tags())
+        categories = []
+        for i in listOfTags:
+            categories.append({x: i[x] for x in requiredFields})
+        for tag in categories:
+            tag['text'] = tag.pop('name')
+            tag['value'] = tag.pop('id')
+
+        catalogs = self._get_catalogs()
+        c.offering = {
+            'categories': categories,
+            'catalogs': catalogs
+        }
         # when the data is provided
         if request.POST:
             offering_info = {}
@@ -120,16 +153,10 @@ class PublishControllerUI(base.BaseController):
             offering_info['version'] = request.POST.get('version', '')
             offering_info['is_open'] = 'open' in request.POST
 
-            # Get tags in the expected format of the form select field
-            requiredFields = ['id', 'name']
-            tags = []
-            for i in listOfTags:
-                tags.append({x: i[x] for x in requiredFields})
-            for tag in tags:
-                tag['text'] = tag.pop('name')
-                tag['value'] = tag.pop('id')
-
-            offering_info['tags'] = tags
+            # for category in request.POST.getall('category_string'):
+                
+            # offering_info['catalogs'] = # TODO
+            # offering_info['categories'] = categories
 
             # Read image
             # 'image_upload' == '' if the user has not set a file

@@ -222,13 +222,13 @@ class StoreConnector(object):
 
     def _generate_product_info(self, product):
         return {
-            'id': product.get('id')
+            'id': product.get('id'),
             'href': product.get('href'),
             'name': product.get('name'),
             'version': product.get('version')
         }
 
-    def _get_url(products):
+    def _get_product_url(products):
         for x in products:
             if x.get('name') == 'Location':
                 return x.get('value')
@@ -240,7 +240,7 @@ class StoreConnector(object):
         products = req.json()
 
         def _valid_products_filter(product):
-            return product.get('lifecycleStatus') == 'Lanched' or product.get('lifecycleStatus') == 'Active' and _get_url(product['productSpecCharacteristic']) == dataset_url
+            return product.get('lifecycleStatus') == 'Lanched' or product.get('lifecycleStatus') == 'Active' and _get_product_url(product['productSpecCharacteristic']) == dataset_url
 
         return filter(_valid_products_filter, products)
 
