@@ -147,20 +147,6 @@ class PublishControllerUI(base.BaseController):
                 ver = "1" + ver
             return ver
 
-        # Only id and href should be added
-        def _generate_category_list(lst):
-            categories = []
-            for ID in lst:
-                for cat in listOfTags:
-                    if cat['id'] == ID:
-                        categories.append(
-                            {x: cat[x] for x in ('id', 'href') if cat['id'] == ID})
-                        break
-            return categories
-
-        def _get_parents(lst):
-            return 0
-
         listOfTags, catRelatives = self._sort_categories(self._get_Content('category'))
         listOfCatalogs = self._get_Content('catalog')
 
@@ -192,7 +178,11 @@ class PublishControllerUI(base.BaseController):
                     tempList.append(catRelatives[tempCat['parentId']])
                     tempCat = catRelatives[tempCat['parentId']]
 
-            offering_info['categories'] = _generate_category_list(tempList)
+            for cat in tempList:
+                if 'parentId' in cat:
+                    del cat['parentId']
+
+            offering_info['categories'] = tempList
 
             offering_info['catalog'] = request.POST.get('catalogs')
             # Read image
@@ -235,7 +225,8 @@ class PublishControllerUI(base.BaseController):
                 c.errors['Open'] = ['Private Datasets cannot be offered as Open Offerings']
 
             # Public datasets cannot be offered with price
-            if 'price' in offering_info and dataset['private'] is False and offering_info['price'] != 0.0 and 'Price' not in c.errors:
+            if ('price' in offering_info and dataset['private'] is False and
+                    offering_info['price'] != 0.0 and 'Price' not in c.errors):
                 log.warn(
                     'User tried to create a paid offering for a public dataset')
                 c.errors['Price'] = ['You cannot set a price to a dataset that is public since everyone can access it']
