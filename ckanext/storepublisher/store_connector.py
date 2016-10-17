@@ -48,7 +48,7 @@ class StoreException(Exception):
     pass
 
 
-# http get https://biz-ecosystem.conwet.com/#/api/offering/resources/ 
+# http get https://biz-ecosystem.conwet.com/#/api/offering/resources/
 class StoreConnector(object):
 
     def __init__(self, config):
@@ -63,26 +63,48 @@ class StoreConnector(object):
     def _get_dataset_url(self, dataset):
         return '%s/dataset/%s' % (self.site_url, dataset['id'])
 
-    def _upload_image(title, image):
+    def _upload_image(self, title, image):
         # Request to upload the attachment
-        name = 'image_{}'.format(title)
-        headers = {'Accept': 'application/json'}
-        body = {
-            'contentType': 'image/png', # Double check this fields.
-            'isPublic': True,
-            'content': {
-                'name': name,
-                'data': image
-            }
-        }
-        url = _make_request('post', '{}/charging/api/assetManagement/assets/uploadJob'.format(self.store_url), headers, body).headers.get('Location')
+        name = 'image_{}.png'.format(title)
+        headers = {'Accept': 'application/json',
+                   'Content-type': 'application/json'}
+        body = {'contentType': 'image/png',
+                'isPublic': True,
+                'content': {
+                    'name': name,
+                    'data': image
+                    }
+                }
+        url = self._make_request(
+            'post',
+            '{}/charging/api/assetManagement/assets/uploadJob'.format(
+                self.store_url),
+            headers,
+            json.dumps(body)
+        ).headers.get('Location')
         return url
+
+    def _validateVersion(self, version):
+        ver = version
+        if not ver:
+            ver = '1.0'
+        if re.search(r'\.$', ver) is not None:
+            ver += '0'
+        if re.search(r'\.{2,}', ver) is not None:
+            ver = re.sub(r'\.{2,}', r'\.', ver)
+        if re.search(r'^\.', ver) is not None:
+            ver = "1" + ver
+        return ver
 
     def _get_product(self, product, content_info):
         c = plugins.toolkit.c
         resource = {}
         resource['productNumber'] = product['id']
-        resource['version'] = product['version']
+        if not product:
+            resource['version'] = '1.0'
+        else:
+            resource['version'] = self._validateVersion(product['version'])
+
         resource['name'] = product['title']
         resource['description'] = product['notes']
         resource['isBundle'] = False
@@ -91,34 +113,64 @@ class StoreConnector(object):
         resource['validFor'] = {}
         resource['relatedParty'] = [{
             'id': c.user,
-            'href': ('%s/DSPartyManagement/api/partyManagement/v2/individual/%s' % (self.store_url, c.user)),
+            'href': (
+                '%s/DSPartyManagement/api/partyManagement/v2/individual/%s' % (
+                    self.store_url,
+                    c.user)
+            ),
             'role': 'Owner'
         }]
-
         resource['attachment'] = [{
             'type': 'Picture',
-            'url': _upload_image(product['title'], content_info['image_base64'])
+            'url': self._upload_image(
+                product['title'],
+                content_info['image_base64']
+            )
         }]
-        resource['bundleProductSpecification'] = []
-        resource['productSpecificationRelationShip'] = []
+        resource['bundledProductSpecification'] = []
+        resource['productSpecificationRelationship'] = []
         resource['serviceSpecification'] = []
         resource['resourceSpecification'] = []
         resource['productSpecCharacteristic'] = [{
             'configurable': False,
             'name': 'Media Type',
-            'value': product['type']
-        },
-        {
+            'valueType': 'string',
+            'productSpecCharacteristicValue': [{
+                "valueType": "string",
+                "default": True,
+                "value": product['type'],
+                "unitOfMeasure": "",
+                "valueFrom": "",
+                "valueTo": ""
+            }]
+        }, {
             'configurable': False,
             'name': 'Asset Type',
-            'value': 'CKAN Dataset'
-        },
-        {
+            'valueType': 'string',
+            'productSpecCharacteristicValue': [{
+                "valueType": "string",
+                "default": True,
+                "value": 'CKAN Dataset',
+                "unitOfMeasure": "",
+                "valueFrom": "",
+                "valueTo": ""
+            }]
+        }, {
+            'productSpecCharacteristicValue': [{
+                "valueType": "string",
+                "default": True,
+                "value": '{}/dataset/{}'.format(self.site_url, product['id']),
+                "unitOfMeasure": "",
+                "valueFrom": "",
+                "valueTo": ""
+            }],
             'configurable': False,
             'name': 'Location',
-            'value': '{}/dataset/{}'.format(self.site_url, product['id'])
+            'valueType': 'string'
         }]
         return resource
+
+    # def _remove_params(self, data):
 
     def _get_offering(self, offering_info, product):
         offering = {}
@@ -132,7 +184,7 @@ class StoreConnector(object):
             'name': product['name']
         }
 
-        offering['category'] = offering_info['tags']
+        offering['category'] = offering_info['categories']
         # Set price
         if 'price' not in offering_info or offering_info['price'] == 0.0:
             offering['productOfferingPrice'] = []
@@ -140,13 +192,16 @@ class StoreConnector(object):
             price = Decimal(offering_info['price'])
             offering['productOfferingPrice'] = [{
                 'name': 'One time fee',
-                'description': 'One time fee of {} EUR'.format(offering_info['price']),
+                'description': 'One time fee of {} EUR'.format(
+                    offering_info['price']),
                 'priceType': 'one time',
                 'price': {
                     'taxIncludedAmount': offering_info['price'],
-                    'dutyFreeAmount': str(price - (price * Decimal(0.2))), # Price - 20%
+                    'dutyFreeAmount': str(
+                        price - (
+                            price * Decimal(0.2))),
                     'taxRate': '20',
-                    'currencyCode': 'EUR'  
+                    'currencyCode': 'EUR'
                 }
             }]
 
@@ -165,7 +220,6 @@ class StoreConnector(object):
         return offering
 
     def _make_request(self, method, url, headers={}, data=None):
-
         def _get_headers_and_make_request(method, url, headers, data):
             # Include access token in the request
             usertoken = plugins.toolkit.c.usertoken
@@ -182,9 +236,12 @@ class StoreConnector(object):
 
         req = _get_headers_and_make_request(method, url, headers, data)
 
-        # When a 401 status code is got, we should refresh the token and retry the request.
+        # When a 401 status code is got,
+        # we should refresh the token and retry the request.
         if req.status_code == 401:
-            log.info('%s(%s): returned 401. Token expired? Request will be retried with a refresehd token' % (method, url))
+            log.info(
+                '%s(%s): returned 401. Token expired? Request will be retried with a refresehd token' % (method, url)
+            )
             plugins.toolkit.c.usertoken_refresh()
             # Update the header 'Authorization'
             req = _get_headers_and_make_request(method, url, headers, data)
@@ -212,8 +269,11 @@ class StoreConnector(object):
         if dataset['private']:
             user_nickname = c.user
             name = resource['name'].replace(' ', '%20')
-            resource_url = '%s/search/resource/%s/%s/%s' % (self.store_url, user_nickname,
-                                                            name, resource['version'])
+            resource_url = '%s/search/resource/%s/%s/%s' % (
+                self.store_url,
+                user_nickname,
+                name,
+                resource['version'])
 
             if dataset.get('acquire_url', '') != resource_url:
                 dataset['acquire_url'] = resource_url
@@ -228,24 +288,29 @@ class StoreConnector(object):
             'version': product.get('version')
         }
 
-    def _get_product_url(products):
+    def _get_product_url(self, products):
         for x in products:
             if x.get('name') == 'Location':
-                return x.get('value')
+                return x['productSpecCharacteristicValue'][0].get('value')
         return ''
-    
+
     def _get_existing_products(self, dataset):
         dataset_url = self._get_dataset_url(dataset)
-        req = self._make_request('get', '%s/DSProductCatalog/api/catalogManagement/v2//productSpecification/' % self.store_url)
+        req = self._make_request(
+            'get',
+            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % self.store_url
+        )
         products = req.json()
 
         def _valid_products_filter(product):
-            return product.get('lifecycleStatus') == 'Lanched' or product.get('lifecycleStatus') == 'Active' and _get_product_url(product['productSpecCharacteristic']) == dataset_url
-
+            if 'productSpecCharacteristic' in product:
+                return self._get_product_url(
+                    product['productSpecCharacteristic']) == dataset_url
+            else:
+                return False
         return filter(_valid_products_filter, products)
 
     def _get_existing_product(self, product):
-
         valid_products = self._get_existing_products(product)
 
         if len(valid_products) > 0:
@@ -259,13 +324,17 @@ class StoreConnector(object):
         # Create the resource
         resource = self._get_product(product, content_info)
         headers = {'Content-Type': 'application/json'}
-        self._make_request('post', '%s/DSProductCatalog/api/catalogManagement/v2//productSpecification/' % self.store_url,
-                           headers, json.dumps(resource))
+        resp = self._make_request(
+            'post',
+            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % self.store_url,
+            headers,
+            json.dumps(resource)
+        )
 
         self._update_acquire_url(product, resource)
 
         # Return the resource
-        return self._generate_product_info(resource)
+        return self._generate_product_info(resp.json())
 
     def _rollback(self, offering_info, offering_created):
 
@@ -274,8 +343,12 @@ class StoreConnector(object):
         try:
             # Delete the offering only if it was created
             if offering_created:
-                self._make_request('delete', '%s/api/offering/offerings/%s/%s/%s' % (self.store_url,
-                                   user_nickname, offering_info['name'], offering_info['version']))
+                self._make_request(
+                    'delete', '%s/api/offering/offerings/%s/%s/%s' % (
+                        self.store_url,
+                        user_nickname,
+                        offering_info['name'],
+                        offering_info['version']))
         except Exception as e:
             log.warn('Rollback failed %s' % e)
 
@@ -302,7 +375,7 @@ class StoreConnector(object):
             returns some errors
         '''
 
-        user_nickname = plugins.toolkit.c.user
+#        user_nickname = plugins.toolkit.c.user
 
         log.info('Creating Offering %s' % offering_info['name'])
         offering_created = False
@@ -318,21 +391,22 @@ class StoreConnector(object):
             # Get the resource. If it does not exist, it will be created
             resource = self._get_existing_product(dataset)
             if resource is None:
-                content_info = {'image_base64': offering_info['image_base64']}
-                resource = self._create_product(dataset, content_info)
+                resource = self._create_product(dataset, offering_info)
 
             offering = self._get_offering(offering_info, resource)
-            offering_name = offering_info['name']
-            offering_version = offering_info['version']
-
+            # offering_name = offering_info['name']
+            #  offering_version = offering_info['version']
             # Create the offering
-            resp = self._make_request('post', '%s/DSProductCatalog/api/catalogManagement/v2/productOffering/'.format(self.store_url),
-                               headers, json.dumps(offering))
+            resp = self._make_request(
+                'post',
+                '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/'.format(self.store_url, offering_info['catalog']),
+                headers, json.dumps(offering)
+            )
             offering_created = True
 
             # Return offering URL
-            name = offering_info['name'].replace(' ', '%20')
-            return _get_url(resp.headers.get('Location'))
+#            name = offering_info['name'].replace(' ', '%20')
+            return resp.url
 
         except Exception as e:
             log.warn(e)

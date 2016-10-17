@@ -5,12 +5,13 @@
 
 {% set name = offering['name'] if offering else data.title %}
 {% set description = offering['description'] if offering else data.notes %}
-{% set categories = offering[categories'] %}
+{% set categories = offering['categories'] %}
 {% set version =  offering['version'] if offering else '' %}
 {% set license_description = offering['license_description'] if offering else '' %}
 {% set price = offering['price'] if offering else '' %}
 {% set is_open = offering['is_open'] if offering else True %}
 {% set update_acquire_url = offering['update_acquire_url'] if offering else True %}
+{% set catalogs = offering['catalogs'] %}
 
 {% if offering['license_title'] %}
   {% set license_title = offering['license_title'] %}
@@ -51,7 +52,13 @@ then itself be extended to add/remove blocks of functionality. #}
   {% set category_attrs = {'data-module': 'autocomplete', 'data-module-tags': '',
   'data-module-source': '/api/2/util/tag/autocomplete?incomplete=?', 'multiple':
   true} %}
-  {{ form.select('category_string', id='field-category', label=_('Categories'), options=categories, error=errors.categories, classes=['control-full'], attrs=category_attrs) }}
+  {{ form.select('categories', id='field-category', label=_('Categories'), options=categories, error=errors.categories, classes=['control-full'], attrs=category_attrs) }}
+  {% endblock %}
+
+  {% block offering_catalogs %}
+  {% set catalog_attrs = {'data-module': 'autocomplete', 'data-module-tags': '',
+  'data-module-source': '/api/2/util/tag/autocomplete?incomplete=?' } %}
+  {{ form.select('catalogs', id='field-catalogs', label=_('Catalogs'), options=catalogs, error=errors.catalogs, classes=['control-full'], attrs=catalog_attrs) }}
   {% endblock %}
 
   {% block offering_version %}

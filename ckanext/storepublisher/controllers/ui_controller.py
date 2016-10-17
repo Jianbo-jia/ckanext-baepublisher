@@ -25,6 +25,7 @@ import ckan.plugins as plugins
 import logging
 import os
 import requests
+import re
 
 from ckanext.storepublisher.store_connector import StoreConnector, StoreException
 from ckan.common import request
@@ -45,61 +46,53 @@ class PublishControllerUI(base.BaseController):
         self._store_connector = StoreConnector(config)
         self.store_url = self._store_connector.store_url
 
-    def _sort_categories(self, tags):
+    def _sort_categories(self, categories):
         listOfTags = []
-        # I know this could be too horrible but first
-        # ill get a solution and then Ill refactor this
-        tagSorted = sorted(tags, key=lambda x: int(x['id']))
+        catRelatives = {}
+        tagSorted = sorted(categories, key=lambda x: int(x['id']))
 
         if not len(tagSorted):
             return listOfTags
         listOfTags.append(tagSorted[0])
+        catRelatives[tagSorted[0]['id']] = {'href': tagSorted[0]['href'],
+                                            'id': tagSorted[0]['id']}
         tagSorted.pop(0)
 
         # Im sorry for this double loop, ill try to optimize this
         for tag in tagSorted:
             if tag['isRoot']:
                 listOfTags.append(tag)
+                catRelatives[tag['id']] = {'href': tag['href'],
+                                           'id': tag['id']}
                 continue
             for item in listOfTags:
                 if tag['parentId'] == item['id']:
                     listOfTags.insert(listOfTags.index(item) + 1, tag)
+                    catRelatives[tag['id']] = {'href': tag['href'],
+                                               'id': tag['id'],
+                                               'parentId':  tag.get('parentId', '')}
                     break
-        return listOfTags
+        return listOfTags, catRelatives
 
-    # TODO: generaliza los dos gets
-    def _get_tags(self):
+    # This function is intended to make get requests to the api
+    def _get_Content(self, content):
         c = plugins.toolkit.c
         filters = {
             'lifecycleStatus': 'Launched'
         }
-        # If this doesnt work ill just make a bunch of tags manually just to test the overall functionality
-        responseTags = requests.get('{}/DSProductCatalog/api/catalogManagement/v2/category'.format(self.store_url), params=filters)
-
+        if content == 'catalog':
+            filters['relatedParty.id'] = c.user
+        response = requests.get(
+            '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
+                self.store_url, content), params=filters)
         # Checking that the request finished successfully
         try:
-            responseTags.raise_for_status()
+            response.raise_for_status()
         except Exception:
-            log.warn('Tags couldnt be loaded')
-            c.errors['Tags'] = ['Tags couldnt be loaded']
-        return responseTags.json()
-
-    def _get_catalogs(self):
-        c = plugins.toolkit.c
-        filters = {
-            'lifecycleStatus': 'Launched',
-            'relatedParty': c.user
-        }
-
-        responseCatalog = requests.get('{}/DSProductCatalog/api/catalogManagement/v2/catalog'.format(self.store_url), params=filters)
-
-        # Checking that the request finished successfully
-        try:
-            responseCatalog.raise_for_status()
-        except Exception:
-            log.warn('Tags couldnt be loaded')
-            c.errors['Tags'] = ['category couldnt be loaded']
-        return responseCatalog.json()
+            log.warn('{} couldnt be loaded'.format(content))
+            c.errors['{}'.format(
+                content)] = ['{} couldnt be loaded'.format(content)]
+        return response.json()
 
     def publish(self, id, offering_info=None, errors=None):
 
@@ -114,8 +107,12 @@ class PublishControllerUI(base.BaseController):
         try:
             tk.check_access('package_update', context, {'id': id})
         except tk.NotAuthorized:
-            log.warn('User %s not authorized to publish %s in the FIWARE Store' % (c.user, id))
-            tk.abort(401, tk._('User %s not authorized to publish %s') % (c.user, id))
+            log.warn(
+                'User %s not authorized to publish %s in the FIWARE Store' % (
+                    c.user, id))
+            tk.abort(
+                401, tk._('User %s not authorized to publish %s') % (
+                    c.user, id))
 
         # Get the dataset and set template variables
         # It's assumed that the user can view a package if he/she can update it
@@ -128,19 +125,48 @@ class PublishControllerUI(base.BaseController):
         c.errors = {}
 
         # Get tags in the expected format of the form select field
-        requiredFields = ['id', 'name']
-        listOfTags = self._sort_categories(self._get_tags())
-        categories = []
-        for i in listOfTags:
-            categories.append({x: i[x] for x in requiredFields})
-        for tag in categories:
-            tag['text'] = tag.pop('name')
-            tag['value'] = tag.pop('id')
+        def _getList(param):
+            requiredFields = ['id', 'name']
+            result = []
+            for i in param:
+                result.append({x: i[x] for x in requiredFields})
+            for elem in result:
+                elem['text'] = elem.pop('name')
+                elem['value'] = elem.pop('id')
+            return result
 
-        catalogs = self._get_catalogs()
+        def _validateVersion(version):
+            ver = version
+            if not ver:
+                ver = '1.0'
+            if re.search(r'\.$', ver) is not None:
+                ver += '0'
+            if re.search(r'\.{2,}', ver) is not None:
+                ver = re.sub(r'\.{2,}', r'\.', ver)
+            if re.search(r'^\.', ver) is not None:
+                ver = "1" + ver
+            return ver
+
+        # Only id and href should be added
+        def _generate_category_list(lst):
+            categories = []
+            for ID in lst:
+                for cat in listOfTags:
+                    if cat['id'] == ID:
+                        categories.append(
+                            {x: cat[x] for x in ('id', 'href') if cat['id'] == ID})
+                        break
+            return categories
+
+        def _get_parents(lst):
+            return 0
+
+        listOfTags, catRelatives = self._sort_categories(self._get_Content('category'))
+        listOfCatalogs = self._get_Content('catalog')
+
         c.offering = {
-            'categories': categories,
-            'catalogs': catalogs
+            'categories': _getList(listOfTags),
+            'catalogs': _getList(listOfCatalogs)
         }
         # when the data is provided
         if request.POST:
@@ -148,22 +174,34 @@ class PublishControllerUI(base.BaseController):
             offering_info['pkg_id'] = request.POST.get('pkg_id', '')
             offering_info['name'] = request.POST.get('name', '')
             offering_info['description'] = request.POST.get('description', '')
-            offering_info['license_title'] = request.POST.get('license_title', '')
-            offering_info['license_description'] = request.POST.get('license_description', '')
-            offering_info['version'] = request.POST.get('version', '')
+            offering_info['license_title'] = request.POST.get(
+                'license_title', '')
+            offering_info['license_description'] = request.POST.get(
+                'license_description', '')
+            offering_info['version'] = _validateVersion(
+                request.POST.get('version', ''))
             offering_info['is_open'] = 'open' in request.POST
+            categories = request.POST.getall('categories')
+            tempList = []
 
-            # for category in request.POST.getall('category_string'):
-                
-            # offering_info['catalogs'] = # TODO
-            # offering_info['categories'] = categories
+            # Insert all parents in the set until there are no more new parents
+            for cat in categories:
+                tempList.append(catRelatives[cat])
+                tempCat = catRelatives[cat]
+                while 'parentId' in tempCat and tempCat['parentId']:
+                    tempList.append(catRelatives[tempCat['parentId']])
+                    tempCat = catRelatives[tempCat['parentId']]
 
+            offering_info['categories'] = _generate_category_list(tempList)
+
+            offering_info['catalog'] = request.POST.get('catalogs')
             # Read image
             # 'image_upload' == '' if the user has not set a file
             image_field = request.POST.get('image_upload', '')
 
             if image_field != '':
-                offering_info['image_base64'] = base64.b64encode(image_field.file.read())
+                offering_info['image_base64'] = base64.b64encode(
+                    image_field.file.read())
             else:
                 offering_info['image_base64'] = LOGO_CKAN_B64
 
@@ -192,20 +230,25 @@ class PublishControllerUI(base.BaseController):
 
             # Private datasets cannot be offered as open offerings
             if dataset['private'] is True and offering_info['is_open']:
-                log.warn('User tried to create an open offering for a private dataset')
+                log.warn(
+                    'User tried to create an open offering for a private dataset')
                 c.errors['Open'] = ['Private Datasets cannot be offered as Open Offerings']
 
             # Public datasets cannot be offered with price
             if 'price' in offering_info and dataset['private'] is False and offering_info['price'] != 0.0 and 'Price' not in c.errors:
-                log.warn('User tried to create a paid offering for a public dataset')
+                log.warn(
+                    'User tried to create a paid offering for a public dataset')
                 c.errors['Price'] = ['You cannot set a price to a dataset that is public since everyone can access it']
 
-            if c.errors is None:
-
+            if not c.errors:
                 try:
-                    offering_url = self._store_connector.create_offering(dataset, offering_info)
-
-                    helpers.flash_success(tk._('Offering <a href="%s" target="_blank">%s</a> published correctly.' % (offering_url, offering_info['name'])), allow_html=True)
+                    offering_url = self._store_connector.create_offering(
+                        dataset, offering_info)
+                    helpers.flash_success(
+                        tk._(
+                            'Offering <a href="%s" target="_blank">%s</a> published correctly.' % (
+                                offering_url, offering_info['name'])),
+                        allow_html=True)
 
                     # FIX: When a redirection is performed, the success message is not shown
                     # response.status_int = 302
