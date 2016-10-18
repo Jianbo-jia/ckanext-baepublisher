@@ -46,34 +46,6 @@ class PublishControllerUI(base.BaseController):
         self._store_connector = StoreConnector(config)
         self.store_url = self._store_connector.store_url
 
-    def _sort_categories(self, categories):
-        listOfTags = []
-        catRelatives = {}
-        tagSorted = sorted(categories, key=lambda x: int(x['id']))
-
-        if not len(tagSorted):
-            return listOfTags
-        listOfTags.append(tagSorted[0])
-        catRelatives[tagSorted[0]['id']] = {'href': tagSorted[0]['href'],
-                                            'id': tagSorted[0]['id']}
-        tagSorted.pop(0)
-
-        # Im sorry for this double loop, ill try to optimize this
-        for tag in tagSorted:
-            if tag['isRoot']:
-                listOfTags.append(tag)
-                catRelatives[tag['id']] = {'href': tag['href'],
-                                           'id': tag['id']}
-                continue
-            for item in listOfTags:
-                if tag['parentId'] == item['id']:
-                    listOfTags.insert(listOfTags.index(item) + 1, tag)
-                    catRelatives[tag['id']] = {'href': tag['href'],
-                                               'id': tag['id'],
-                                               'parentId':  tag.get('parentId', '')}
-                    break
-        return listOfTags, catRelatives
-
     # This function is intended to make get requests to the api
     def _get_Content(self, content):
         c = plugins.toolkit.c
@@ -117,12 +89,37 @@ class PublishControllerUI(base.BaseController):
         # Get the dataset and set template variables
         # It's assumed that the user can view a package if he/she can update it
 
-        # endpoint tags http://siteurl:porturl/catalogManagement/category
-
         dataset = tk.get_action('package_show')(context, {'id': id})
-
         c.pkg_dict = dataset
         c.errors = {}
+
+        def _sort_categories(categories):
+            listOfTags = []
+            catRelatives = {}
+            tagSorted = sorted(categories, key=lambda x: int(x['id']))
+
+            if not len(tagSorted):
+                return listOfTags
+            listOfTags.append(tagSorted[0])
+            catRelatives[tagSorted[0]['id']] = {'href': tagSorted[0]['href'],
+                                                'id': tagSorted[0]['id']}
+            tagSorted.pop(0)
+
+            # Im sorry for this double loop, ill try to optimize this
+            for tag in tagSorted:
+                if tag['isRoot']:
+                    listOfTags.append(tag)
+                    catRelatives[tag['id']] = {'href': tag['href'],
+                                               'id': tag['id']}
+                    continue
+                for item in listOfTags:
+                    if tag['parentId'] == item['id']:
+                        listOfTags.insert(listOfTags.index(item) + 1, tag)
+                        catRelatives[tag['id']] = {'href': tag['href'],
+                                                   'id': tag['id'],
+                                                   'parentId': tag.get('parentId', '')}
+                        break
+            return listOfTags, catRelatives
 
         # Get tags in the expected format of the form select field
         def _getList(param):
@@ -147,7 +144,7 @@ class PublishControllerUI(base.BaseController):
                 ver = "1" + ver
             return ver
 
-        listOfTags, catRelatives = self._sort_categories(self._get_Content('category'))
+        listOfTags, catRelatives = _sort_categories(self._get_Content('category'))
         listOfCatalogs = self._get_Content('catalog')
 
         c.offering = {
