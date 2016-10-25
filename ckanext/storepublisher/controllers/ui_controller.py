@@ -97,9 +97,8 @@ class PublishControllerUI(base.BaseController):
             listOfTags = []
             catRelatives = {}
             tagSorted = sorted(categories, key=lambda x: int(x['id']))
-
             if not len(tagSorted):
-                return listOfTags
+                return listOfTags, catRelatives
             listOfTags.append(tagSorted[0])
             catRelatives[tagSorted[0]['id']] = {'href': tagSorted[0]['href'],
                                                 'id': tagSorted[0]['id']}
@@ -144,13 +143,14 @@ class PublishControllerUI(base.BaseController):
                 ver = "1" + ver
             return ver
 
-        listOfTags, catRelatives = _sort_categories(self._get_Content('category'))
-        listOfCatalogs = self._get_Content('catalog')
+        if request.GET:
+            self._listOfTags, self._catRelatives = _sort_categories(self._get_Content('category'))
+            self._listOfCatalogs = self._get_Content('catalog')
 
-        c.offering = {
-            'categories': _getList(listOfTags),
-            'catalogs': _getList(listOfCatalogs)
-        }
+            c.offering = {
+                'categories': _getList(self._listOfTags),
+                'catalogs': _getList(self._listOfCatalogs)
+            }
         # when the data is provided
         if request.POST:
             offering_info = {}
@@ -164,21 +164,24 @@ class PublishControllerUI(base.BaseController):
             offering_info['version'] = _validateVersion(
                 request.POST.get('version', ''))
             offering_info['is_open'] = 'open' in request.POST
+            offering_info['license_title'] = request.POST.get('license_title', '')
+            offering_info['license_description'] = request.POST.get('license_description', '')
             categories = request.POST.getall('categories')
             tempList = []
 
             # Insert all parents in the set until there are no more new parents
             for cat in categories:
-                tempList.append(catRelatives[cat])
-                tempCat = catRelatives[cat]
+                tempList.append(self._catRelatives[cat])
+                tempCat = self._catRelatives[cat]
                 while 'parentId' in tempCat and tempCat['parentId']:
-                    tempList.append(catRelatives[tempCat['parentId']])
-                    tempCat = catRelatives[tempCat['parentId']]
+                    tempList.append(self._catRelatives[tempCat['parentId']])
+                    tempCat = self._catRelatives[tempCat['parentId']]
 
             for cat in tempList:
                 if 'parentId' in cat:
                     del cat['parentId']
 
+            tempList = [dict(tupleized) for tupleized in set(tuple(item.items()) for item in tempList)]
             offering_info['categories'] = tempList
 
             offering_info['catalog'] = request.POST.get('catalogs')
@@ -213,7 +216,7 @@ class PublishControllerUI(base.BaseController):
             for field in required_fields:
                 if not offering_info[field]:
                     log.warn('Field %r was not provided' % field)
-                    c.errors[field.capitalize()] = ['This filed is required to publish the offering']
+                    c.errors[field.capitalize()] = ['This field is required to publish the offering']
 
             # Private datasets cannot be offered as open offerings
             if dataset['private'] is True and offering_info['is_open']:
@@ -228,6 +231,7 @@ class PublishControllerUI(base.BaseController):
                     'User tried to create a paid offering for a public dataset')
                 c.errors['Price'] = ['You cannot set a price to a dataset that is public since everyone can access it']
 
+            print(offering_info)
             if not c.errors:
                 try:
                     offering_url = self._store_connector.create_offering(

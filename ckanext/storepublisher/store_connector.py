@@ -8,7 +8,6 @@
 # modify it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-
 # CKAN Store Publisher Extension is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -72,8 +71,7 @@ class StoreConnector(object):
                 'isPublic': True,
                 'content': {
                     'name': name,
-                    'data': image
-                    }
+                    'data': image}
                 }
         url = self._make_request(
             'post',
@@ -100,7 +98,7 @@ class StoreConnector(object):
         c = plugins.toolkit.c
         resource = {}
         resource['productNumber'] = product['id']
-        if not product:
+        if not product or 'version' not in product:
             resource['version'] = '1.0'
         else:
             resource['version'] = self._validateVersion(product['version'])
@@ -156,6 +154,9 @@ class StoreConnector(object):
                 "valueTo": ""
             }]
         }, {
+            'configurable': False,
+            'name': 'Location',
+            'valueType': 'string',
             'productSpecCharacteristicValue': [{
                 "valueType": "string",
                 "default": True,
@@ -163,26 +164,32 @@ class StoreConnector(object):
                 "unitOfMeasure": "",
                 "valueFrom": "",
                 "valueTo": ""
-            }],
-            'configurable': False,
-            'name': 'Location',
-            'valueType': 'string'
+            }]
         }]
+        if content_info['license_title'] or content_info['license_description']:
+            resource['productSpecCharacteristic'].append({
+                'configurable': False,
+                'name': 'License',
+                'description': content_info['license_description'],
+                'valueType': 'string',
+                'productSpecCharacteristicValue': [{
+                    "valueType": "string",
+                    "default": True,
+                    "value": content_info['license_title'],
+                    "unitOfMeasure": "",
+                    "valueFrom": "",
+                    "valueTo": ""
+                }]
+            })
+            
         return resource
-
-    # def _remove_params(self, data):
 
     def _get_offering(self, offering_info, product):
         offering = {}
         offering['name'] = offering_info['name']
         offering['version'] = offering_info['version']
         offering['lifecycleStatus'] = 'Launched'
-        offering['productSpecification'] = {
-            'id': product['id'],
-            'href': product['href'],
-            'version': product['version'],
-            'name': product['name']
-        }
+        offering['productSpecification'] = product
 
         offering['category'] = offering_info['categories']
         # Set price
@@ -208,13 +215,7 @@ class StoreConnector(object):
         # Set license
         # This will be changed
         ######################################################################
-
-        #if offering_info['license_title'] or offering_info['license_description']:
-        #    offering['offering_info']['legal'] = {
-        #        'title': offering_info['license_title'],
-        #        'text': offering_info['license_description']
-        #    }
-
+        
         #######################################################################
 
         return offering
@@ -267,13 +268,9 @@ class StoreConnector(object):
                    }
 
         if dataset['private']:
-            user_nickname = c.user
-            name = resource['name'].replace(' ', '%20')
-            resource_url = '%s/search/resource/%s/%s/%s' % (
+            resource_url = '%s/#/offering?productSpecId=%s' % (
                 self.store_url,
-                user_nickname,
-                name,
-                resource['version'])
+                resource['id'])
 
             if dataset.get('acquire_url', '') != resource_url:
                 dataset['acquire_url'] = resource_url
@@ -399,7 +396,9 @@ class StoreConnector(object):
             # Create the offering
             resp = self._make_request(
                 'post',
-                '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/'.format(self.store_url, offering_info['catalog']),
+                '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/'.format(
+                    self.store_url,
+                    offering_info['catalog']),
                 headers, json.dumps(offering)
             )
             offering_created = True
