@@ -213,15 +213,6 @@ class StoreConnectorTest(unittest.TestCase):
         
         # Thanks stackoverflow.
         # I use this just in order to convert the encode of the dict i get
-        def _convert(data):
-            if isinstance(data, basestring):
-                return str(data)
-            elif isinstance(data, collections.Mapping):
-                return dict(map(_convert, data.iteritems()))
-            elif isinstance(data, collections.Iterable):
-                return type(data)(map(_convert, data))
-            else:
-                return data
         
         product = self.instance._get_product(dataset,
                                              {"image_base64": "asdf",
@@ -230,7 +221,7 @@ class StoreConnectorTest(unittest.TestCase):
         # Check the values
         self.maxDiff = None
 
-        self.assertEquals(resource, _convert(product))
+        self.assertEquals(resource, product)
 
     @parameterized.expand([
         (0,),

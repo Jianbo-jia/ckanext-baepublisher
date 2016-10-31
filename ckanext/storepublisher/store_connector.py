@@ -15,7 +15,7 @@
 
 # You should have received a copy of the GNU Affero General Public License
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
-
+from __future__ import unicode_literals
 import ckan.model as model
 import ckan.plugins as plugins
 import json

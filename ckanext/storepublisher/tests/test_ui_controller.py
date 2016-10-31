@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import unicode_literals
 import ckanext.storepublisher.controllers.ui_controller as controller
 import base64
 import os
