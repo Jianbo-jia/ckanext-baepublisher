@@ -42,7 +42,7 @@ def slugify(text, delim=' '):
 
     return delim.join(result)
 
-
+    
 class StoreException(Exception):
     pass
 
@@ -59,6 +59,18 @@ class StoreConnector(object):
         url = url[:-1] if url.endswith('/') else url
         return url
 
+    def _validate_version(self, version):
+        ver = version
+        if not ver:
+            ver = '1.0'
+        if re.search(r'\.$', ver) is not None:
+            ver += '0'
+        if re.search(r'\.{2,}', ver) is not None:
+            ver = re.sub(r'\.{2,}', r'\.', ver)
+        if re.search(r'^\.', ver) is not None:
+            ver = "1" + ver
+        return ver
+    
     def _get_dataset_url(self, dataset):
         return '%s/dataset/%s' % (self.site_url, dataset['id'])
 
@@ -82,27 +94,11 @@ class StoreConnector(object):
         ).headers.get('Location')
         return url
 
-    def _validateVersion(self, version):
-        ver = version
-        if not ver:
-            ver = '1.0'
-        if re.search(r'\.$', ver) is not None:
-            ver += '0'
-        if re.search(r'\.{2,}', ver) is not None:
-            ver = re.sub(r'\.{2,}', r'\.', ver)
-        if re.search(r'^\.', ver) is not None:
-            ver = "1" + ver
-        return ver
-
     def _get_product(self, product, content_info):
         c = plugins.toolkit.c
         resource = {}
         resource['productNumber'] = product['id']
-        if not product or 'version' not in product:
-            resource['version'] = '1.0'
-        else:
-            resource['version'] = self._validateVersion(product['version'])
-
+        resource['version'] = self._validate_version(product['version'])
         resource['name'] = product['title']
         resource['description'] = product['notes']
         resource['isBundle'] = False
@@ -285,8 +281,8 @@ class StoreConnector(object):
             'version': product.get('version')
         }
 
-    def _get_product_url(self, products):
-        for x in products:
+    def _get_product_url(self, characteristics):
+        for x in characteristics:
             if x.get('name') == 'Location':
                 return x['productSpecCharacteristicValue'][0].get('value')
         return ''
@@ -300,11 +296,7 @@ class StoreConnector(object):
         products = req.json()
 
         def _valid_products_filter(product):
-            if 'productSpecCharacteristic' in product:
-                return self._get_product_url(
-                    product['productSpecCharacteristic']) == dataset_url
-            else:
-                return False
+            return 'productSpecCharacteristic' in product and self._get_product_url(product['productSpecCharacteristic']) == dataset_url
         return filter(_valid_products_filter, products)
 
     def _get_existing_product(self, product):
@@ -333,19 +325,18 @@ class StoreConnector(object):
         # Return the resource
         return self._generate_product_info(resp.json())
 
-    def _rollback(self, offering_info, offering_created):
-
-        user_nickname = plugins.toolkit.c.user
+    def _rollback(self, offering_info, resource, offering_created):
 
         try:
             # Delete the offering only if it was created
             if offering_created:
+                headers = {'Content-Type': 'application/json'}
                 self._make_request(
-                    'delete', '%s/api/offering/offerings/%s/%s/%s' % (
+                    'patch', '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/{2}'.format(
                         self.store_url,
-                        user_nickname,
-                        offering_info['name'],
-                        offering_info['version']))
+                        offering_info['catalog'],
+                        resource['id']),
+                    headers, {'lifecycleStatus': 'Retired'})
         except Exception as e:
             log.warn('Rollback failed %s' % e)
 
@@ -372,15 +363,13 @@ class StoreConnector(object):
             returns some errors
         '''
 
-#        user_nickname = plugins.toolkit.c.user
-
-        log.info('Creating Offering %s' % offering_info['name'])
+        log.debug('Creating Offering %s' % offering_info['name'])
         offering_created = False
 
-        log.info('Dataset: ')
-        log.info(dataset)
-        log.info('Offering_info: ')
-        log.info(offering_info)
+        log.debug('Dataset: ')
+        log.debug(dataset)
+        log.debug('Offering_info: ')
+        log.debug(offering_info)
 
         # Make the request to the server
         headers = {'Content-Type': 'application/json'}
@@ -409,5 +398,5 @@ class StoreConnector(object):
 
         except Exception as e:
             log.warn(e)
-            self._rollback(offering_info, offering_created)
+            self._rollback(offering_info, resource, offering_created)
             raise StoreException(e.message)

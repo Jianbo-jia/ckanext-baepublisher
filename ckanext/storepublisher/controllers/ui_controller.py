@@ -47,7 +47,7 @@ class PublishControllerUI(base.BaseController):
         self.store_url = self._store_connector.store_url
 
     # This function is intended to make get requests to the api
-    def _get_Content(self, content):
+    def _get_content(self, content):
         c = plugins.toolkit.c
         filters = {
             'lifecycleStatus': 'Launched'
@@ -92,35 +92,35 @@ class PublishControllerUI(base.BaseController):
         dataset = tk.get_action('package_show')(context, {'id': id})
         c.pkg_dict = dataset
         c.errors = {}
-
+        
         def _sort_categories(categories):
-            listOfTags = []
-            catRelatives = {}
-            tagSorted = sorted(categories, key=lambda x: int(x['id']))
-            if not len(tagSorted):
-                return listOfTags, catRelatives
-            listOfTags.append(tagSorted[0])
-            catRelatives[tagSorted[0]['id']] = {'href': tagSorted[0]['href'],
-                                                'id': tagSorted[0]['id']}
-            tagSorted.pop(0)
+            list_of_categories = []
+            cat_relatives = {}
+            categories_sorted = sorted(categories, key=lambda x: int(x['id']))
+            if not len(categories_sorted):
+                return list_of_categories, cat_relatives
+            list_of_categories.append(categories_sorted[0])
+            cat_relatives[categories_sorted[0]['id']] = {'href': categories_sorted[0]['href'],
+                                                         'id': categories_sorted[0]['id']}
+            categories_sorted.pop(0)
 
             # Im sorry for this double loop, ill try to optimize this
-            for tag in tagSorted:
+            for tag in categories_sorted:
                 if tag['isRoot']:
-                    listOfTags.append(tag)
-                    catRelatives[tag['id']] = {'href': tag['href'],
-                                               'id': tag['id']}
+                    list_of_categories.append(tag)
+                    cat_relatives[tag['id']] = {'href': tag['href'],
+                                                'id': tag['id']}
                     continue
-                for item in listOfTags:
+                for item in list_of_categories:
                     if tag['parentId'] == item['id']:
-                        listOfTags.insert(listOfTags.index(item) + 1, tag)
-                        catRelatives[tag['id']] = {'href': tag['href'],
-                                                   'id': tag['id'],
-                                                   'parentId': tag.get('parentId', '')}
+                        list_of_categories.insert(list_of_categories.index(item) + 1, tag)
+                        cat_relatives[tag['id']] = {'href': tag['href'],
+                                                    'id': tag['id'],
+                                                    'parentId': tag.get('parentId', '')}
                         break
-            return listOfTags, catRelatives
+            return list_of_categories, cat_relatives
 
-        # Get tags in the expected format of the form select field
+        # Get categories in the expected format of the form select field
         def _getList(param):
             requiredFields = ['id', 'name']
             result = []
@@ -131,25 +131,15 @@ class PublishControllerUI(base.BaseController):
                 elem['value'] = elem.pop('id')
             return result
 
-        def _validateVersion(version):
-            ver = version
-            if not ver:
-                ver = '1.0'
-            if re.search(r'\.$', ver) is not None:
-                ver += '0'
-            if re.search(r'\.{2,}', ver) is not None:
-                ver = re.sub(r'\.{2,}', r'\.', ver)
-            if re.search(r'^\.', ver) is not None:
-                ver = "1" + ver
-            return ver
-
-        if request.GET:
-            self._listOfTags, self._catRelatives = _sort_categories(self._get_Content('category'))
-            self._listOfCatalogs = self._get_Content('catalog')
+        showed_get = True
+        if not request.GET and showed_get:
+            showed_get = False
+            self._list_of_categories, self._cat_relatives = _sort_categories(self._get_content('category'))
+            self._list_of_catalogs = self._get_content('catalog')
 
             c.offering = {
-                'categories': _getList(self._listOfTags),
-                'catalogs': _getList(self._listOfCatalogs)
+                'categories': _getList(self._list_of_categories),
+                'catalogs': _getList(self._list_of_catalogs)
             }
         # when the data is provided
         if request.POST:
@@ -157,12 +147,7 @@ class PublishControllerUI(base.BaseController):
             offering_info['pkg_id'] = request.POST.get('pkg_id', '')
             offering_info['name'] = request.POST.get('name', '')
             offering_info['description'] = request.POST.get('description', '')
-            offering_info['license_title'] = request.POST.get(
-                'license_title', '')
-            offering_info['license_description'] = request.POST.get(
-                'license_description', '')
-            offering_info['version'] = _validateVersion(
-                request.POST.get('version', ''))
+            offering_info['version'] = self._store_connector._validate_version(request.POST.get('version', ''))
             offering_info['is_open'] = 'open' in request.POST
             offering_info['license_title'] = request.POST.get('license_title', '')
             offering_info['license_description'] = request.POST.get('license_description', '')
@@ -171,11 +156,11 @@ class PublishControllerUI(base.BaseController):
 
             # Insert all parents in the set until there are no more new parents
             for cat in categories:
-                tempList.append(self._catRelatives[cat])
-                tempCat = self._catRelatives[cat]
+                tempList.append(self._cat_relatives[cat])
+                tempCat = self._cat_relatives[cat]
                 while 'parentId' in tempCat and tempCat['parentId']:
-                    tempList.append(self._catRelatives[tempCat['parentId']])
-                    tempCat = self._catRelatives[tempCat['parentId']]
+                    tempList.append(self._cat_relatives[tempCat['parentId']])
+                    tempCat = self._cat_relatives[tempCat['parentId']]
 
             for cat in tempList:
                 if 'parentId' in cat:
@@ -230,8 +215,6 @@ class PublishControllerUI(base.BaseController):
                 log.warn(
                     'User tried to create a paid offering for a public dataset')
                 c.errors['Price'] = ['You cannot set a price to a dataset that is public since everyone can access it']
-
-            print(offering_info)
             if not c.errors:
                 try:
                     offering_url = self._store_connector.create_offering(

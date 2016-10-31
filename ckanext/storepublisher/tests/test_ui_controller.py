@@ -107,12 +107,12 @@ class UIControllerTest(unittest.TestCase):
         ('catalog', MockResponse({'id': '1'}, 200, []),
          {'lifecycleStatus': 'Launched', 'relatedParty.id': 'eugenio'})
     ])
-    def test_get_Content(self, content, resp, filters):
+    def test_get_content(self, content, resp, filters):
         requests.get = MagicMock(return_value=resp)
         controller.plugins.toolkit.c.user = 'eugenio'
         controller.plugins.toolkit.c.errors = {}
 
-        r = self.instanceController._get_Content(content)
+        r = self.instanceController._get_content(content)
         
         requests.get.assert_called_once_with(
             '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
@@ -124,14 +124,14 @@ class UIControllerTest(unittest.TestCase):
             self.assertEquals(controller.plugins.toolkit.c.errors, {})
         else:
             self.assertEquals(controller.plugins.toolkit.c.errors[content], ['{} couldnt be loaded'.format(content)])
-            self.assertEquals(self.instanceController._get_Content(content), {})
+            self.assertEquals(self.instanceController._get_content(content), {})
             self.assertTrue(resp.called_Raise)
         
     @parameterized.expand([
         # (False, False, {},),
         # # Test missing fields and wrong version
         (True, False, MockResponse({}, 200, {'name': 'a',
-                                             'version': '1',
+                                             'version': '1.0',
                                              'pkg_id': 'package_id'})),
         (True, False, MockResponse({}, 200, {'version': '1.0',
                                              'pkg_id': 'package_id'})),
@@ -225,7 +225,6 @@ class UIControllerTest(unittest.TestCase):
                            'acquire_url': 'http://example.com'}
         package_show = MagicMock(return_value=current_package)
         package_update = MagicMock()
-        self.instanceController._get_tags = MagicMock(return_value = [{'name': 'tag1', 'isRoot': True, 'id': 1, 'parentID': 1}, {'name': 'tag2', 'isRoot': True, 'id': 2, 'parentID': 2}, {'name': 'tag3', 'isRoot': True, 'id': 3, 'parentID': 3}])
         categories = [{'name': 'Programacion', 'isRoot': True, 'id': '1',
                        'parentId': '1',
                        'href': 'http://localhost:8000/DSProductCatalog/api/catalogManagement/v2/category/1:(1.0)'},
@@ -244,7 +243,7 @@ class UIControllerTest(unittest.TestCase):
             else:
                 return package_update
 
-        self.instanceController._get_Content = MagicMock(side_effect=[categories, catalog])
+        self.instanceController._get_content = MagicMock(side_effect=[categories, catalog])
 
         tkString = 'Offering <a href="{0}" target="_blank">{1}</a> published correctly.'.format(create_offering_res, post_content.get('name', ''))
         
@@ -253,9 +252,11 @@ class UIControllerTest(unittest.TestCase):
             side_effect=self._toolkit.NotAuthorized if allowed is False else None)
         controller.plugins.toolkit._ = self._toolkit._
         controller.plugins.toolkit._.return_value = tkString
+        controller.request.GET = []
         controller.request.POST = post_content
         self._store_connector_instance.create_offering = MagicMock(
             side_effect=[create_offering_res])
+        self._store_connector_instance._validate_version = MagicMock(return_value='1.0')
         user = controller.plugins.toolkit.c.user
         pkg_id = post_content.get('pkg_id')
         # pkg_id = 'dhjus2-fdsjwdf-fq-dsjager'
@@ -280,7 +281,6 @@ class UIControllerTest(unittest.TestCase):
 
             # Get the list of tags
             if post_content.get('categories') == [] or 'categories' not in post_content:
-                print('POTORRIN')
                 tags = []
             else:
                 tags = [
@@ -352,7 +352,6 @@ class UIControllerTest(unittest.TestCase):
                     self.assertEquals(0, package_update.call_count)
 
                 else:
-                    print(controller.plugins.toolkit._.call_args_list)
                     controller.helpers.flash_success.assert_called_once_with(
                         tkString,
                         allow_html=True)

@@ -22,6 +22,7 @@ import ckanext.storepublisher.store_connector as store_connector
 
 import json
 import unittest
+import collections
 from decimal import Decimal
 
 from mock import MagicMock
@@ -130,84 +131,106 @@ class StoreConnectorTest(unittest.TestCase):
         ([DATASET])
     ])
     def test_get_product(self, dataset):
-        self.instance._upload_image = MagicMock(return_value='urlExample')
+        self.instance._upload_image = MagicMock(return_value="urlExample")
 
         dataset = DATASET.copy()
                                                 
         c = store_connector.plugins.toolkit.c
-        c.user = 'provider name'
+        c.user = "provider name"
         resource = {
-            'productNumber': DATASET['id'],
-            'name': DATASET['name'],
-            'version': DATASET['version'],
-            'description': DATASET['notes'],
-            'isBundle': False,
-            'brand': c.user,
-            'lifecycleStatus': 'Launched',
-            'validFor': {},
-            'relatedParty': [{
-                'id': c.user,
-                'href': ('{}/DSPartyManagement/api/partyManagement/v2/individual/{}'.format(BASE_STORE_URL, c.user)),
-                'role': 'Owner'
+            "productNumber": DATASET["id"],
+            "name": DATASET["name"],
+            "version": DATASET["version"],
+            "description": DATASET["notes"],
+            "isBundle": False,
+            "brand": c.user,
+            "lifecycleStatus": "Launched",
+            "validFor": {},
+            "relatedParty": [{
+                "id": c.user,
+                "href": ("{}/DSPartyManagement/api/partyManagement/v2/individual/{}".format(BASE_STORE_URL, c.user)),
+                "role": "Owner"
             }],
-            'attachment': [{
-                'type': 'Picture',
-                'url': 'urlExample'
+            "attachment": [{
+                "type": "Picture",
+                "url": "urlExample"
             }],
-            'bundledProductSpecification': [],
-            'productSpecificationRelationship': [],
-            'serviceSpecification': [],
-            'resourceSpecification': [],
-            'productSpecCharacteristic': [{
-                'configurable': False,
-                'name': 'Media Type',
-                'valueType': 'string',
-                'productSpecCharacteristicValue': [{
+            "bundledProductSpecification": [],
+            "productSpecificationRelationship": [],
+            "serviceSpecification": [],
+            "resourceSpecification": [],
+            "productSpecCharacteristic": [{
+                "configurable": False,
+                "name": "Media Type",
+                "valueType": "string",
+                "productSpecCharacteristicValue": [{
                     "valueType": "string",
                     "default": True,
-                    "value": DATASET['type'],
+                    "value": DATASET["type"],
                     "unitOfMeasure": "",
                     "valueFrom": "",
                     "valueTo": ""
                 }]
             }, {
-                'configurable': False,
-                'name': 'Asset Type',
-                'valueType': 'string',
-                'productSpecCharacteristicValue': [{
+                "configurable": False,
+                "name": "Asset Type",
+                "valueType": "string",
+                "productSpecCharacteristicValue": [{
                     "valueType": "string",
                     "default": True,
-                    "value": 'CKAN Dataset',
+                    "value": "CKAN Dataset",
                     "unitOfMeasure": "",
                     "valueFrom": "",
                     "valueTo": ""
                 }]
             }, {
-                'configurable': False,
-                'name': 'Location',
-                'valueType': 'string',
-                'productSpecCharacteristicValue': [{
+                "configurable": False,
+                "name": "Location",
+                "valueType": "string",
+                "productSpecCharacteristicValue": [{
                     "valueType": "string",
                     "default": True,
                     "unitOfMeasure": "",
                     "valueFrom": "",
                     "valueTo": "",
-                    'value': '{}/dataset/{}'.format(BASE_SITE_URL, DATASET['id'])
+                    "value": "{}/dataset/{}".format(BASE_SITE_URL, DATASET["id"])
+                }]
+            }, {
+                "configurable": False,
+                "name": "License",
+                "valueType": "string",
+                "description": "Use it and maybe buy me a beer",
+                "productSpecCharacteristicValue": [{
+                    "valueType": "string",
+                    "default": True,
+                    "unitOfMeasure": "",
+                    "valueFrom": "",
+                    "valueTo": "",
+                    "value": "beerware"
                 }]
             }]
         }
+        
+        # Thanks stackoverflow.
+        # I use this just in order to convert the encode of the dict i get
+        def _convert(data):
+            if isinstance(data, basestring):
+                return str(data)
+            elif isinstance(data, collections.Mapping):
+                return dict(map(_convert, data.iteritems()))
+            elif isinstance(data, collections.Iterable):
+                return type(data)(map(_convert, data))
+            else:
+                return data
+        
         product = self.instance._get_product(dataset,
-                                             {'image_base64': 'asdf',
-                                              'license_title': 'beerware',
-                                              'license_description': 'Use it and maybe buy me a beer'})
+                                             {"image_base64": "asdf",
+                                              "license_title": "beerware",
+                                              "license_description": "Use it and maybe buy me a beer"})
         # Check the values
-        self.assertEquals(product['productNumber'], resource['productNumber'])
-        self.assertEquals(product['description'], resource['description'])
-        self.assertEquals(product['version'], resource['version'])
-        self.assertEquals(product['attachment'][0]['url'], resource['attachment'][0]['url'])
-        self.assertEquals(
-            product['productSpecCharacteristic'][2]['productSpecCharacteristicValue'][0]['value'],
-            resource['productSpecCharacteristic'][2]['productSpecCharacteristicValue'][0]['value'])
+        self.maxDiff = None
+
+        self.assertEquals(resource, _convert(product))
 
     @parameterized.expand([
         (0,),
@@ -220,26 +243,33 @@ class StoreConnectorTest(unittest.TestCase):
         offering_info['price'] = price
         resource = {'id': 'example_id', 'name': 'resource_name', 'version': '1.0', 'href': 'example.com'}
         offering = self.instance._get_offering(offering_info, resource)
-
-        print(price)
-        print(offering)
-        # Check the values
-        self.assertEquals(OFFERING_INFO_BASE['name'], offering['name'])
-        self.assertEquals(OFFERING_INFO_BASE['version'], offering['version'])
-        self.assertEquals(resource, offering['productSpecification'])
-        # Check price
-        if 'price' not in offering_info or offering_info['price'] == 0.0:
-            self.assertEquals([], offering['productOfferingPrice'])
+        free_offering = []
+        nonfree_offering = [{
+            'name': 'One time fee',
+            'description': 'One time fee of {} EUR'.format(
+                offering_info['price']),
+            'priceType': 'one time',
+            'price': {
+                'taxIncludedAmount': offering_info['price'],
+                'dutyFreeAmount': str(price - (price * Decimal(0.2))),
+                'taxRate': '20',
+                'currencyCode': 'EUR'
+            }
+        }]
+        expected_offering = {
+            'name': offering_info['name'],
+            'version': offering_info['version'],
+            'lifecycleStatus': 'Launched',
+            'productSpecification': resource,
+            'category': offering_info['categories']
+        }
+        if price == 0:
+            expected_offering['productOfferingPrice'] = free_offering
         else:
-            self.assertEquals('One time fee', offering['productOfferingPrice'][0]['name'])
-            self.assertEquals(
-                str(price - (price * Decimal(0.2))), offering['productOfferingPrice'][0]['price']['dutyFreeAmount'])
+            expected_offering['productOfferingPrice'] = nonfree_offering
 
-    # def test_get_tags(self):
-    #     expected_tags = list(OFFERING_INFO_BASE['tags'])
-    #     expected_tags.append('dataset')
-    #     returned_tags = self.instance._get_tags(OFFERING_INFO_BASE)['tags']
-    #     self.assertEquals(expected_tags, returned_tags)
+        # Check the values
+        self.assertEquals(offering, expected_offering)
 
     @parameterized.expand([
         ('get', {}, None, 200),
@@ -621,8 +651,8 @@ class StoreConnectorTest(unittest.TestCase):
                     "unitOfMeasure": "",
                     "valueFrom": "",
                     "valueTo": ""
-                }]
-            }]
+                }]}
+            ]
         }
 
         expected_resource = {
@@ -690,19 +720,21 @@ class StoreConnectorTest(unittest.TestCase):
         (False,)
     ])
     def test_rollback(self, offering_created):
-        user_nickname = store_connector.plugins.toolkit.c.user = 'smg'
         # Configure mocks
         self.instance._make_request = MagicMock()
         # Call the function
-        self.instance._rollback(OFFERING_INFO_BASE, offering_created)
+        self.instance._rollback(OFFERING_INFO_BASE, DATASET, offering_created)
 
         if offering_created:
+            headers = {'Content-Type': 'application/json'}
             self.instance._make_request.assert_any_call(
-                'delete',
-                '%s/api/offering/offerings/%s/%s/%s' % (BASE_STORE_URL,
-                                                        user_nickname,
-                                                        OFFERING_INFO_BASE['name'],
-                                                        OFFERING_INFO_BASE['version']))
+                'patch',
+                '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/{2}'.format(
+                    BASE_STORE_URL,
+                    OFFERING_INFO_BASE['catalog'],
+                    DATASET['id']
+                ),
+                headers, {'lifecycleStatus': 'Retired'})
 
     @parameterized.expand([
         (True, None),
