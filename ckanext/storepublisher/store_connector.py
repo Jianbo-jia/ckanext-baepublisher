@@ -8,7 +8,6 @@
 # modify it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-
 # CKAN Store Publisher Extension is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -16,7 +15,7 @@
 
 # You should have received a copy of the GNU Affero General Public License
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
-
+from __future__ import unicode_literals
 import ckan.model as model
 import ckan.plugins as plugins
 import json
@@ -25,6 +24,7 @@ import re
 import requests
 
 from unicodedata import normalize
+from decimal import Decimal
 from requests_oauthlib import OAuth2Session
 
 log = logging.getLogger(__name__)
@@ -42,84 +42,181 @@ def slugify(text, delim=' '):
 
     return delim.join(result)
 
-
+    
 class StoreException(Exception):
     pass
 
 
+# http get https://biz-ecosystem.conwet.com/#/api/offering/resources/
 class StoreConnector(object):
 
     def __init__(self, config):
         self.site_url = self._get_url(config, 'ckan.site_url')
         self.store_url = self._get_url(config, 'ckan.storepublisher.store_url')
-        self.repository = config.get('ckan.storepublisher.repository')
 
     def _get_url(self, config, config_property):
         url = config.get(config_property, '')
         url = url[:-1] if url.endswith('/') else url
         return url
 
+    def _validate_version(self, version):
+        ver = version
+        if not ver:
+            ver = '1.0'
+        if re.search(r'\.$', ver) is not None:
+            ver += '0'
+        if re.search(r'\.{2,}', ver) is not None:
+            ver = re.sub(r'\.{2,}', r'\.', ver)
+        if re.search(r'^\.', ver) is not None:
+            ver = "1" + ver
+        return ver
+    
     def _get_dataset_url(self, dataset):
         return '%s/dataset/%s' % (self.site_url, dataset['id'])
 
-    def _get_resource(self, dataset):
-        resource = {}
-        resource['name'] = slugify('Dataset %s - ID %s' % (dataset['title'], dataset['id']))
-        resource['description'] = dataset['notes']
-        resource['version'] = '1.0'
-        resource['content_type'] = 'dataset'
-        resource['resource_type'] = 'API'
-        # Open resources can be offered in Non-open Offerings
-        resource['open'] = True
-        resource['link'] = self._get_dataset_url(dataset)
+    def _upload_image(self, title, image):
+        # Request to upload the attachment
+        name = 'image_{}.png'.format(title)
+        headers = {'Accept': 'application/json',
+                   'Content-type': 'application/json'}
+        body = {'contentType': 'image/png',
+                'isPublic': True,
+                'content': {
+                    'name': name,
+                    'data': image}
+                }
+        url = self._make_request(
+            'post',
+            '{}/charging/api/assetManagement/assets/uploadJob'.format(
+                self.store_url),
+            headers,
+            json.dumps(body)
+        ).headers.get('Location')
+        return url
 
+    def _get_product(self, product, content_info):
+        c = plugins.toolkit.c
+        resource = {}
+        resource['productNumber'] = product['id']
+        resource['version'] = self._validate_version(product['version'])
+        resource['name'] = product['title']
+        resource['description'] = product['notes']
+        resource['isBundle'] = False
+        resource['brand'] = c.user  # Name of the author
+        resource['lifecycleStatus'] = 'Launched'
+        resource['validFor'] = {}
+        resource['relatedParty'] = [{
+            'id': c.user,
+            'href': (
+                '%s/DSPartyManagement/api/partyManagement/v2/individual/%s' % (
+                    self.store_url,
+                    c.user)
+            ),
+            'role': 'Owner'
+        }]
+        resource['attachment'] = [{
+            'type': 'Picture',
+            'url': self._upload_image(
+                product['title'],
+                content_info['image_base64']
+            )
+        }]
+        resource['bundledProductSpecification'] = []
+        resource['productSpecificationRelationship'] = []
+        resource['serviceSpecification'] = []
+        resource['resourceSpecification'] = []
+        resource['productSpecCharacteristic'] = [{
+            'configurable': False,
+            'name': 'Media Type',
+            'valueType': 'string',
+            'productSpecCharacteristicValue': [{
+                "valueType": "string",
+                "default": True,
+                "value": product['type'],
+                "unitOfMeasure": "",
+                "valueFrom": "",
+                "valueTo": ""
+            }]
+        }, {
+            'configurable': False,
+            'name': 'Asset Type',
+            'valueType': 'string',
+            'productSpecCharacteristicValue': [{
+                "valueType": "string",
+                "default": True,
+                "value": 'CKAN Dataset',
+                "unitOfMeasure": "",
+                "valueFrom": "",
+                "valueTo": ""
+            }]
+        }, {
+            'configurable': False,
+            'name': 'Location',
+            'valueType': 'string',
+            'productSpecCharacteristicValue': [{
+                "valueType": "string",
+                "default": True,
+                "value": '{}/dataset/{}'.format(self.site_url, product['id']),
+                "unitOfMeasure": "",
+                "valueFrom": "",
+                "valueTo": ""
+            }]
+        }]
+        if content_info['license_title'] or content_info['license_description']:
+            resource['productSpecCharacteristic'].append({
+                'configurable': False,
+                'name': 'License',
+                'description': content_info['license_description'],
+                'valueType': 'string',
+                'productSpecCharacteristicValue': [{
+                    "valueType": "string",
+                    "default": True,
+                    "value": content_info['license_title'],
+                    "unitOfMeasure": "",
+                    "valueFrom": "",
+                    "valueTo": ""
+                }]
+            })
+            
         return resource
 
-    def _get_offering(self, offering_info, resource):
+    def _get_offering(self, offering_info, product):
         offering = {}
         offering['name'] = offering_info['name']
         offering['version'] = offering_info['version']
-        offering['notification_url'] = '%s/api/action/dataset_acquired' % self.site_url
-        offering['image'] = {
-            'name': 'ckan.png',
-            'data': offering_info['image_base64']
-        }
-        offering['related_images'] = []
-        offering['resources'] = []
-        offering['resources'].append(resource)
-        offering['applications'] = []
-        offering['offering_info'] = {
-            'description': offering_info['description'],
-            'pricing': {}
-        }
+        offering['lifecycleStatus'] = 'Launched'
+        offering['productSpecification'] = product
+
+        offering['category'] = offering_info['categories']
+        # Set price
+        if 'price' not in offering_info or offering_info['price'] == 0.0:
+            offering['productOfferingPrice'] = []
+        else:
+            price = Decimal(offering_info['price'])
+            offering['productOfferingPrice'] = [{
+                'name': 'One time fee',
+                'description': 'One time fee of {} EUR'.format(
+                    offering_info['price']),
+                'priceType': 'one time',
+                'price': {
+                    'taxIncludedAmount': offering_info['price'],
+                    'dutyFreeAmount': str(
+                        price - (
+                            price * Decimal(0.2))),
+                    'taxRate': '20',
+                    'currencyCode': 'EUR'
+                }
+            }]
 
         # Set license
-        if offering_info['license_title'] or offering_info['license_description']:
-            offering['offering_info']['legal'] = {
-                'title': offering_info['license_title'],
-                'text': offering_info['license_description']
-            }
-
-        # Set price
-        if offering_info['price'] == 0.0:
-            offering['offering_info']['pricing']['price_model'] = 'free'
-        else:
-            offering['offering_info']['pricing']['price_model'] = 'single_payment'
-            offering['offering_info']['pricing']['price'] = offering_info['price']
-
-        offering['repository'] = self.repository
-        offering['open'] = offering_info['is_open']
+        # This will be changed
+        ######################################################################
+        
+        #######################################################################
 
         return offering
 
-    def _get_tags(self, offering_info):
-        new_tags = list(offering_info['tags'])
-        new_tags.append('dataset')
-
-        return {'tags': list(new_tags)}
-
     def _make_request(self, method, url, headers={}, data=None):
-
         def _get_headers_and_make_request(method, url, headers, data):
             # Include access token in the request
             usertoken = plugins.toolkit.c.usertoken
@@ -136,9 +233,12 @@ class StoreConnector(object):
 
         req = _get_headers_and_make_request(method, url, headers, data)
 
-        # When a 401 status code is got, we should refresh the token and retry the request.
+        # When a 401 status code is got,
+        # we should refresh the token and retry the request.
         if req.status_code == 401:
-            log.info('%s(%s): returned 401. Token expired? Request will be retried with a refresehd token' % (method, url))
+            log.info(
+                '%s(%s): returned 401. Token expired? Request will be retried with a refresehd token' % (method, url)
+            )
             plugins.toolkit.c.usertoken_refresh()
             # Update the header 'Authorization'
             req = _get_headers_and_make_request(method, url, headers, data)
@@ -164,91 +264,81 @@ class StoreConnector(object):
                    }
 
         if dataset['private']:
-            user_nickname = c.user
-            name = resource['name'].replace(' ', '%20')
-            resource_url = '%s/search/resource/%s/%s/%s' % (self.store_url, user_nickname,
-                                                            name, resource['version'])
+            resource_url = '%s/#/offering?productSpecId=%s' % (
+                self.store_url,
+                resource['id'])
 
             if dataset.get('acquire_url', '') != resource_url:
                 dataset['acquire_url'] = resource_url
                 tk.get_action('package_update')(context, dataset)
                 log.info('Acquire URL updated correctly to %s' % resource_url)
 
-    def _generate_resource_info(self, resource):
+    def _generate_product_info(self, product):
         return {
-            'provider': plugins.toolkit.c.user,
-            'name': resource.get('name'),
-            'version': resource.get('version')
+            'id': product.get('id'),
+            'href': product.get('href'),
+            'name': product.get('name'),
+            'version': product.get('version')
         }
 
-    def _get_existing_resources(self, dataset):
+    def _get_product_url(self, characteristics):
+        for x in characteristics:
+            if x.get('name') == 'Location':
+                return x['productSpecCharacteristicValue'][0].get('value')
+        return ''
+
+    def _get_existing_products(self, dataset):
         dataset_url = self._get_dataset_url(dataset)
-        req = self._make_request('get', '%s/api/offering/resources' % self.store_url)
-        resources = req.json()
+        req = self._make_request(
+            'get',
+            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % self.store_url
+        )
+        products = req.json()
 
-        def _valid_resources_filter(resource):
-            return resource.get('state') != 'deleted' and resource.get('link', '') == dataset_url
+        def _valid_products_filter(product):
+            return 'productSpecCharacteristic' in product and self._get_product_url(product['productSpecCharacteristic']) == dataset_url
+        return filter(_valid_products_filter, products)
 
-        return filter(_valid_resources_filter, resources)
+    def _get_existing_product(self, product):
+        valid_products = self._get_existing_products(product)
 
-    def _get_existing_resource(self, dataset):
-
-        valid_resources = self._get_existing_resources(dataset)
-
-        if len(valid_resources) > 0:
-            resource = valid_resources.pop(0)
-            self._update_acquire_url(dataset, resource)
-            return self._generate_resource_info(resource)
+        if len(valid_products) > 0:
+            resource = valid_products.pop(0)
+            self._update_acquire_url(product, resource)
+            return self._generate_product_info(resource)
         else:
             return None
 
-    def _create_resource(self, dataset):
+    def _create_product(self, product, content_info):
         # Create the resource
-        resource = self._get_resource(dataset)
+        resource = self._get_product(product, content_info)
         headers = {'Content-Type': 'application/json'}
-        self._make_request('post', '%s/api/offering/resources' % self.store_url,
-                           headers, json.dumps(resource))
+        resp = self._make_request(
+            'post',
+            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % self.store_url,
+            headers,
+            json.dumps(resource)
+        )
 
-        self._update_acquire_url(dataset, resource)
+        self._update_acquire_url(product, resource)
 
         # Return the resource
-        return self._generate_resource_info(resource)
+        return self._generate_product_info(resp.json())
 
-    def _rollback(self, offering_info, offering_created):
-
-        user_nickname = plugins.toolkit.c.user
+    def _rollback(self, offering_info, resource, offering_created):
 
         try:
             # Delete the offering only if it was created
             if offering_created:
-                self._make_request('delete', '%s/api/offering/offerings/%s/%s/%s' % (self.store_url,
-                                   user_nickname, offering_info['name'], offering_info['version']))
+                headers = {'Content-Type': 'application/json'}
+                self._make_request(
+                    'patch', '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/{2}'.format(
+                        self.store_url,
+                        offering_info['catalog'],
+                        resource['id']),
+                    headers, {'lifecycleStatus': 'Retired'})
         except Exception as e:
             log.warn('Rollback failed %s' % e)
-
-    def delete_attached_resources(self, dataset):
-        '''
-        Method to delete all the resources (and offerings) that containts the given
-        dataset.
-
-        :param dataset: The dataset whose attached offerings and resources want to be
-            deleted from the Store
-        :type dataset: dict
-        '''
-
-        resources = self._get_existing_resources(dataset)
-        user_nickname = plugins.toolkit.c.user
-
-        for resource in resources:
-            try:
-                name = resource['name'].replace(' ', '%20')
-                version = resource['version']
-                self._make_request('delete', '%s/api/offering/resources/%s/%s/%s' %
-                                             (self.store_url, user_nickname, name, version))
-            except requests.ConnectionError as e:
-                log.warn(e)
-            except Exception as e:
-                log.warn(e)
 
     def create_offering(self, dataset, offering_info):
         '''
@@ -273,51 +363,40 @@ class StoreConnector(object):
             returns some errors
         '''
 
-        user_nickname = plugins.toolkit.c.user
-
-        log.info('Creating Offering %s' % offering_info['name'])
+        log.debug('Creating Offering %s' % offering_info['name'])
         offering_created = False
+
+        log.debug('Dataset: ')
+        log.debug(dataset)
+        log.debug('Offering_info: ')
+        log.debug(offering_info)
 
         # Make the request to the server
         headers = {'Content-Type': 'application/json'}
-
         try:
             # Get the resource. If it does not exist, it will be created
-            resource = self._get_existing_resource(dataset)
+            resource = self._get_existing_product(dataset)
             if resource is None:
-                resource = self._create_resource(dataset)
+                resource = self._create_product(dataset, offering_info)
 
             offering = self._get_offering(offering_info, resource)
-            tags = self._get_tags(offering_info)
-            offering_name = offering_info['name']
-            offering_version = offering_info['version']
-
+            # offering_name = offering_info['name']
+            #  offering_version = offering_info['version']
             # Create the offering
-            self._make_request('post', '%s/api/offering/offerings' % self.store_url,
-                               headers, json.dumps(offering))
+            resp = self._make_request(
+                'post',
+                '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/'.format(
+                    self.store_url,
+                    offering_info['catalog']),
+                headers, json.dumps(offering)
+            )
             offering_created = True
 
-            # Attach tags to the offerings
-            self._make_request('put', '%s/api/offering/offerings/%s/%s/%s/tag' %
-                                      (self.store_url, user_nickname, offering_name,
-                                       offering_version),
-                               headers, json.dumps(tags))
-
-            # Publish offering
-            self._make_request('post', '%s/api/offering/offerings/%s/%s/%s/publish' %
-                                       (self.store_url, user_nickname, offering_name,
-                                        offering_version),
-                               headers, json.dumps({'marketplaces': []}))
-
             # Return offering URL
-            name = offering_info['name'].replace(' ', '%20')
-            return '%s/offering/%s/%s/%s' % (self.store_url, user_nickname, name,
-                                             offering_info['version'])
-        except requests.ConnectionError as e:
-            log.warn(e)
-            self._rollback(offering_info, offering_created)
-            raise StoreException('It was impossible to connect with the Store')
+#            name = offering_info['name'].replace(' ', '%20')
+            return resp.url
+
         except Exception as e:
             log.warn(e)
-            self._rollback(offering_info, offering_created)
+            self._rollback(offering_info, resource, offering_created)
             raise StoreException(e.message)

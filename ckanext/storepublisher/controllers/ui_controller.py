@@ -24,6 +24,8 @@ import ckan.model as model
 import ckan.plugins as plugins
 import logging
 import os
+import requests
+import re
 
 from ckanext.storepublisher.store_connector import StoreConnector, StoreException
 from ckan.common import request
@@ -42,6 +44,27 @@ class PublishControllerUI(base.BaseController):
 
     def __init__(self, name=None):
         self._store_connector = StoreConnector(config)
+        self.store_url = self._store_connector.store_url
+
+    # This function is intended to make get requests to the api
+    def _get_content(self, content):
+        c = plugins.toolkit.c
+        filters = {
+            'lifecycleStatus': 'Launched'
+        }
+        if content == 'catalog':
+            filters['relatedParty.id'] = c.user
+        response = requests.get(
+            '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
+                self.store_url, content), params=filters)
+        # Checking that the request finished successfully
+        try:
+            response.raise_for_status()
+        except Exception:
+            log.warn('{} couldnt be loaded'.format(content))
+            c.errors['{}'.format(
+                content)] = ['{} couldnt be loaded'.format(content)]
+        return response.json()
 
     def publish(self, id, offering_info=None, errors=None):
 
@@ -56,42 +79,104 @@ class PublishControllerUI(base.BaseController):
         try:
             tk.check_access('package_update', context, {'id': id})
         except tk.NotAuthorized:
-            log.warn('User %s not authorized to publish %s in the FIWARE Store' % (c.user, id))
-            tk.abort(401, tk._('User %s not authorized to publish %s') % (c.user, id))
+            log.warn(
+                'User %s not authorized to publish %s in the FIWARE Store' % (
+                    c.user, id))
+            tk.abort(
+                401, tk._('User %s not authorized to publish %s') % (
+                    c.user, id))
 
         # Get the dataset and set template variables
         # It's assumed that the user can view a package if he/she can update it
+
         dataset = tk.get_action('package_show')(context, {'id': id})
         c.pkg_dict = dataset
         c.errors = {}
+        
+        def _sort_categories(categories):
+            list_of_categories = []
+            cat_relatives = {}
+            categories_sorted = sorted(categories, key=lambda x: int(x['id']))
+            if not len(categories_sorted):
+                return list_of_categories, cat_relatives
+            list_of_categories.append(categories_sorted[0])
+            cat_relatives[categories_sorted[0]['id']] = {'href': categories_sorted[0]['href'],
+                                                         'id': categories_sorted[0]['id']}
+            categories_sorted.pop(0)
 
-        # Tag string is needed in order to set the list of tags in the form
-        if 'tag_string' not in c.pkg_dict:
-            tags = [tag['name'] for tag in c.pkg_dict.get('tags', [])]
-            c.pkg_dict['tag_string'] = ','.join(tags)
+            # Im sorry for this double loop, ill try to optimize this
+            for tag in categories_sorted:
+                if tag['isRoot']:
+                    list_of_categories.append(tag)
+                    cat_relatives[tag['id']] = {'href': tag['href'],
+                                                'id': tag['id']}
+                    continue
+                for item in list_of_categories:
+                    if tag['parentId'] == item['id']:
+                        list_of_categories.insert(list_of_categories.index(item) + 1, tag)
+                        cat_relatives[tag['id']] = {'href': tag['href'],
+                                                    'id': tag['id'],
+                                                    'parentId': tag.get('parentId', '')}
+                        break
+            return list_of_categories, cat_relatives
 
+        # Get categories in the expected format of the form select field
+        def _getList(param):
+            requiredFields = ['id', 'name']
+            result = []
+            for i in param:
+                result.append({x: i[x] for x in requiredFields})
+            for elem in result:
+                elem['text'] = elem.pop('name')
+                elem['value'] = elem.pop('id')
+            return result
+
+        showed_get = True
+        if not request.GET and showed_get:
+            showed_get = False
+            self._list_of_categories, self._cat_relatives = _sort_categories(self._get_content('category'))
+            self._list_of_catalogs = self._get_content('catalog')
+
+            c.offering = {
+                'categories': _getList(self._list_of_categories),
+                'catalogs': _getList(self._list_of_catalogs)
+            }
         # when the data is provided
         if request.POST:
             offering_info = {}
             offering_info['pkg_id'] = request.POST.get('pkg_id', '')
             offering_info['name'] = request.POST.get('name', '')
             offering_info['description'] = request.POST.get('description', '')
+            offering_info['version'] = self._store_connector._validate_version(request.POST.get('version', ''))
+            offering_info['is_open'] = 'open' in request.POST
             offering_info['license_title'] = request.POST.get('license_title', '')
             offering_info['license_description'] = request.POST.get('license_description', '')
-            offering_info['version'] = request.POST.get('version', '')
-            offering_info['is_open'] = 'open' in request.POST
+            categories = request.POST.getall('categories')
+            tempList = []
 
-            # Get tags
-            # ''.split(',') ==> ['']
-            tag_string = request.POST.get('tag_string', '')
-            offering_info['tags'] = [] if tag_string == '' else tag_string.split(',')
+            # Insert all parents in the set until there are no more new parents
+            for cat in categories:
+                tempList.append(self._cat_relatives[cat])
+                tempCat = self._cat_relatives[cat]
+                while 'parentId' in tempCat and tempCat['parentId']:
+                    tempList.append(self._cat_relatives[tempCat['parentId']])
+                    tempCat = self._cat_relatives[tempCat['parentId']]
 
+            for cat in tempList:
+                if 'parentId' in cat:
+                    del cat['parentId']
+
+            tempList = [dict(tupleized) for tupleized in set(tuple(item.items()) for item in tempList)]
+            offering_info['categories'] = tempList
+
+            offering_info['catalog'] = request.POST.get('catalogs')
             # Read image
             # 'image_upload' == '' if the user has not set a file
             image_field = request.POST.get('image_upload', '')
 
             if image_field != '':
-                offering_info['image_base64'] = base64.b64encode(image_field.file.read())
+                offering_info['image_base64'] = base64.b64encode(
+                    image_field.file.read())
             else:
                 offering_info['image_base64'] = LOGO_CKAN_B64
 
@@ -116,25 +201,29 @@ class PublishControllerUI(base.BaseController):
             for field in required_fields:
                 if not offering_info[field]:
                     log.warn('Field %r was not provided' % field)
-                    c.errors[field.capitalize()] = ['This filed is required to publish the offering']
+                    c.errors[field.capitalize()] = ['This field is required to publish the offering']
 
             # Private datasets cannot be offered as open offerings
             if dataset['private'] is True and offering_info['is_open']:
-                log.warn('User tried to create an open offering for a private dataset')
+                log.warn(
+                    'User tried to create an open offering for a private dataset')
                 c.errors['Open'] = ['Private Datasets cannot be offered as Open Offerings']
 
             # Public datasets cannot be offered with price
-            if 'price' in offering_info and dataset['private'] is False and offering_info['price'] != 0.0 and 'Price' not in c.errors:
-                log.warn('User tried to create a paid offering for a public dataset')
+            if ('price' in offering_info and dataset['private'] is False and
+                    offering_info['price'] != 0.0 and 'Price' not in c.errors):
+                log.warn(
+                    'User tried to create a paid offering for a public dataset')
                 c.errors['Price'] = ['You cannot set a price to a dataset that is public since everyone can access it']
-
             if not c.errors:
-
                 try:
-                    offering_url = self._store_connector.create_offering(dataset, offering_info)
-
-                    helpers.flash_success(tk._('Offering <a href="%s" target="_blank">%s</a> published correctly.' %
-                                               (offering_url, offering_info['name'])), allow_html=True)
+                    offering_url = self._store_connector.create_offering(
+                        dataset, offering_info)
+                    helpers.flash_success(
+                        tk._(
+                            'Offering <a href="%s" target="_blank">%s</a> published correctly.' % (
+                                offering_url, offering_info['name'])),
+                        allow_html=True)
 
                     # FIX: When a redirection is performed, the success message is not shown
                     # response.status_int = 302
