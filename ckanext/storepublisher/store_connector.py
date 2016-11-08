@@ -368,8 +368,6 @@ class StoreConnector(object):
 
         log.debug('Dataset: ')
         log.debug(dataset)
-        log.debug('Offering_info: ')
-        log.debug(offering_info)
 
         # Make the request to the server
         headers = {'Content-Type': 'application/json'}
