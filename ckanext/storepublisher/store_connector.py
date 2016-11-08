@@ -288,10 +288,12 @@ class StoreConnector(object):
         return ''
 
     def _get_existing_products(self, dataset):
+        c = plugins.toolkit.c
         dataset_url = self._get_dataset_url(dataset)
+
         req = self._make_request(
             'get',
-            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % self.store_url
+            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/?relatedParty.id=%s' % (self.store_url, c.user)
         )
         products = req.json()
 
