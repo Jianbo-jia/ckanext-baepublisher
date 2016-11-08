@@ -250,7 +250,7 @@ class StoreConnector(object):
 
         if status_code_first_digit in invalid_first_digits:
             result = req.json()
-            error_msg = result['message']
+            error_msg = result['error']
             raise Exception(error_msg)
 
         return req
