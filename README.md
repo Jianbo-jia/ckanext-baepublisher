@@ -1,7 +1,7 @@
-CKAN Store Publisher [![Build Status](https://build.conwet.fi.upm.es/jenkins/buildStatus/icon?job=ckan_storepublisher)](https://build.conwet.fi.upm.es/jenkins/job/ckan_storepublisher/)
+CKAN Store Publisher [![Build Status](https://build.conwet.fi.upm.es/jenkins/buildStatus/icon?job=biz_ecosystem_ckan_storepublisher)](https://build.conwet.fi.upm.es/jenkins/job/biz_ecosystem_ckan_storepublisher/)
 =====================
 
-CKAN extension that allows users to publish datasets in the FIWARE Store (as offerings) in a simpler way. To do so, a new tab is added in the Datasets *Manage* menu that offers a form to set the basic options of the offering.
+CKAN extension that allows users to publish datasets in the FIWARE Store (Business API Ecosystem GE) as offerings in a simpler way. To do so, a new tab is added in the Datasets *Manage* menu that offers a form to set the basic options of the offering.
 
 Offerings are **not** automatically published so the dataset creator must access this form and complete it in order to publish the dataset in the FIWARE Store.
 
@@ -11,7 +11,7 @@ Requirements
 ------------
 
 * A CKAN instance able to connect to the FIWARE Store via HTTP(s)
-* [FIWARE Store v0.4 or higher](https://github.com/conwetlab/wstore/)
+* [FIWARE/TMF Biz Ecosystem v5.4.0 or higher](https://github.com/FIWARE-TMForum/Business-API-Ecosystem)
 * [OAuth2 CKAN Extension](https://github.com/conwetlab/ckanext-oauth2/). This extension is needed since the requests sent to the Store must include the OAuth2 credentials to identify the user that is creating the offering.
 * Optional: [CKAN Private Dataset Extension](https://github.com/conwetlab/ckanext-privatedatasets/)
 
