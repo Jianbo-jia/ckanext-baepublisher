@@ -24,6 +24,7 @@ import os
 import unittest
 import requests
 
+from mock import patch
 from mock import MagicMock
 from nose_parameterized import parameterized
 
@@ -238,13 +239,13 @@ class UIControllerTest(unittest.TestCase):
         catalog = [{'id': '51',
                     'name': 'catalog1'}]
 
+        self.instanceController._get_content = MagicMock(side_effect=[categories, catalog])
+
         def _get_action_side_effect(action):
             if action == 'package_show':
                 return package_show
             else:
                 return package_update
-
-        self.instanceController._get_content = MagicMock(side_effect=[categories, catalog])
 
         tkString = 'Offering <a href="{0}" target="_blank">{1}</a> published correctly.'.format(create_offering_res, post_content.get('name', ''))
         

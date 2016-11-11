@@ -25,7 +25,6 @@ import ckan.plugins as plugins
 import logging
 import os
 import requests
-import re
 
 from ckanext.storepublisher.store_connector import StoreConnector, StoreException
 from ckan.common import request
@@ -41,11 +40,38 @@ with open(filepath, 'rb') as f:
 
 
 class PublishControllerUI(base.BaseController):
-
+    
     def __init__(self, name=None):
         self._store_connector = StoreConnector(config)
         self.store_url = self._store_connector.store_url
 
+    def _sort_categories(self, categories):
+        list_of_categories = []
+        cat_relatives = {}
+        categories_sorted = sorted(categories, key=lambda x: int(x['id']))
+        if not len(categories_sorted):
+            return list_of_categories, cat_relatives
+        list_of_categories.append(categories_sorted[0])
+        cat_relatives[categories_sorted[0]['id']] = {'href': categories_sorted[0]['href'],
+                                                     'id': categories_sorted[0]['id']}
+        categories_sorted.pop(0)
+
+        # Im sorry for this double loop, ill try to optimize this
+        for tag in categories_sorted:
+            if tag['isRoot']:
+                list_of_categories.append(tag)
+                cat_relatives[tag['id']] = {'href': tag['href'],
+                                            'id': tag['id']}
+                continue
+            for item in list_of_categories:
+                if tag['parentId'] == item['id']:
+                    list_of_categories.insert(list_of_categories.index(item) + 1, tag)
+                    cat_relatives[tag['id']] = {'href': tag['href'],
+                                                'id': tag['id'],
+                                                'parentId': tag.get('parentId', '')}
+                    break
+        return list_of_categories, cat_relatives
+        
     # This function is intended to make get requests to the api
     def _get_content(self, content):
         c = plugins.toolkit.c
@@ -92,34 +118,10 @@ class PublishControllerUI(base.BaseController):
         dataset = tk.get_action('package_show')(context, {'id': id})
         c.pkg_dict = dataset
         c.errors = {}
+
+        self._list_of_categories, self._cat_relatives = self._sort_categories(self._get_content('category'))
+        self._list_of_catalogs = self._get_content('catalog')
         
-        def _sort_categories(categories):
-            list_of_categories = []
-            cat_relatives = {}
-            categories_sorted = sorted(categories, key=lambda x: int(x['id']))
-            if not len(categories_sorted):
-                return list_of_categories, cat_relatives
-            list_of_categories.append(categories_sorted[0])
-            cat_relatives[categories_sorted[0]['id']] = {'href': categories_sorted[0]['href'],
-                                                         'id': categories_sorted[0]['id']}
-            categories_sorted.pop(0)
-
-            # Im sorry for this double loop, ill try to optimize this
-            for tag in categories_sorted:
-                if tag['isRoot']:
-                    list_of_categories.append(tag)
-                    cat_relatives[tag['id']] = {'href': tag['href'],
-                                                'id': tag['id']}
-                    continue
-                for item in list_of_categories:
-                    if tag['parentId'] == item['id']:
-                        list_of_categories.insert(list_of_categories.index(item) + 1, tag)
-                        cat_relatives[tag['id']] = {'href': tag['href'],
-                                                    'id': tag['id'],
-                                                    'parentId': tag.get('parentId', '')}
-                        break
-            return list_of_categories, cat_relatives
-
         # Get categories in the expected format of the form select field
         def _getList(param):
             requiredFields = ['id', 'name']
@@ -131,16 +133,10 @@ class PublishControllerUI(base.BaseController):
                 elem['value'] = elem.pop('id')
             return result
 
-        showed_get = True
-        if not request.GET and showed_get:
-            showed_get = False
-            self._list_of_categories, self._cat_relatives = _sort_categories(self._get_content('category'))
-            self._list_of_catalogs = self._get_content('catalog')
-
-            c.offering = {
-                'categories': _getList(self._list_of_categories),
-                'catalogs': _getList(self._list_of_catalogs)
-            }
+        c.offering = {
+            'categories': _getList(self._list_of_categories),
+            'catalogs': _getList(self._list_of_catalogs)
+        }
         # when the data is provided
         if request.POST:
             offering_info = {}
@@ -195,7 +191,6 @@ class PublishControllerUI(base.BaseController):
             # Set offering. In this way, we recover the values introduced previosly
             # and the user does not have to introduce them again
             c.offering = offering_info
-
             # Check that all the required fields are provided
             required_fields = ['pkg_id', 'name', 'version']
             for field in required_fields:
@@ -230,5 +225,7 @@ class PublishControllerUI(base.BaseController):
                     # response.location = '/dataset/%s' % id
                 except StoreException as e:
                     c.errors['Store'] = [e.message]
-
+            else:
+                c.offering['catalogs'] = _getList(self._list_of_catalogs)
+                c.offering['categories'] = _getList(self._list_of_categories)
         return tk.render('package/publish.html')
