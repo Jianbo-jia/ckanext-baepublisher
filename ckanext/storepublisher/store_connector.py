@@ -250,7 +250,7 @@ class StoreConnector(object):
 
         if status_code_first_digit in invalid_first_digits:
             result = req.json()
-            error_msg = result['message']
+            error_msg = result['error']
             raise Exception(error_msg)
 
         return req
@@ -288,10 +288,12 @@ class StoreConnector(object):
         return ''
 
     def _get_existing_products(self, dataset):
+        c = plugins.toolkit.c
         dataset_url = self._get_dataset_url(dataset)
+
         req = self._make_request(
             'get',
-            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % self.store_url
+            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/?relatedParty.id=%s' % (self.store_url, c.user)
         )
         products = req.json()
 
@@ -368,8 +370,6 @@ class StoreConnector(object):
 
         log.debug('Dataset: ')
         log.debug(dataset)
-        log.debug('Offering_info: ')
-        log.debug(offering_info)
 
         # Make the request to the server
         headers = {'Content-Type': 'application/json'}
