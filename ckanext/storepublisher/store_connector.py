@@ -15,13 +15,14 @@
 
 # You should have received a copy of the GNU Affero General Public License
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
+
 from __future__ import unicode_literals
+
 import ckan.model as model
 import ckan.plugins as plugins
 import json
 import logging
 import re
-import requests
 
 from unicodedata import normalize
 from decimal import Decimal
@@ -322,10 +323,11 @@ class StoreConnector(object):
             json.dumps(resource)
         )
 
-        self._update_acquire_url(product, resource)
+        resp_body = resp.json()
+        self._update_acquire_url(product, resp_body)
 
         # Return the resource
-        return self._generate_product_info(resp.json())
+        return self._generate_product_info(resp_body)
 
     def _rollback(self, offering_info, resource, offering_created):
 

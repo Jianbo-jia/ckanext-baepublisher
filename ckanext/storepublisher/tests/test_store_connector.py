@@ -22,14 +22,14 @@ import ckanext.storepublisher.store_connector as store_connector
 
 import json
 import unittest
-import collections
+import requests
 from decimal import Decimal
 
 from mock import MagicMock
 from nose_parameterized import parameterized
 
 # Need to be defined here, since it will be used as tests parameter
-ConnectionError = store_connector.requests.ConnectionError
+ConnectionError = requests.ConnectionError
 
 DATASET = {
     'id': 'example_id',
@@ -74,10 +74,6 @@ class StoreConnectorTest(unittest.TestCase):
         self._model = store_connector.model
         store_connector.model = MagicMock()
 
-        self._requests = store_connector.requests
-        store_connector.requests = MagicMock()
-        store_connector.requests.ConnectionError = ConnectionError    # Recover Exception
-
         self._OAuth2Session = store_connector.OAuth2Session
 
         self.config = {
@@ -96,7 +92,6 @@ class StoreConnectorTest(unittest.TestCase):
 
     def tearDown(self):
         store_connector.plugins.toolkit = self._toolkit
-        store_connector.requests = self._requests
         store_connector.OAuth2Session = self._OAuth2Session
         store_connector.model = self._model
 
@@ -647,6 +642,8 @@ class StoreConnectorTest(unittest.TestCase):
         }
 
         expected_resource = {
+            'id': '1',
+            'href': 'http://example.com/DSProductCatalog/api/product/1',
             'name': resource['name'],
             'version': resource['version'],
             'productNumber': resource['productNumber'],
@@ -666,10 +663,10 @@ class StoreConnectorTest(unittest.TestCase):
         dataset = DATASET.copy()
 
         expected_info = {
-            'name': dataset['name'],
-            'version': dataset['version'],
-            'href': dataset['href'],
-            'id': dataset['id']}
+            'name': expected_resource['name'],
+            'version': expected_resource['version'],
+            'href': expected_resource['href'],
+            'id': expected_resource['id']}
 
         # self.instance._get_product = MagicMock(return_value=resource)
         req = MagicMock()
@@ -677,7 +674,7 @@ class StoreConnectorTest(unittest.TestCase):
 
         # Call the function and check that we recieve the correct result
 
-        req.json.return_value = dataset
+        req.json.return_value = expected_resource
         dataset['type'] = 'testField'
 
         self.instance._make_request = MagicMock(return_value=req)
