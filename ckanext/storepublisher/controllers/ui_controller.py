@@ -40,115 +40,57 @@ with open(filepath, 'rb') as f:
 
 
 class PublishControllerUI(base.BaseController):
-
-    class controllerSingleton:
-        def __init__(self):
-            self._store_connector = StoreConnector(config)
-            self.store_url = self._store_connector.store_url
-            self._list_of_categories, self._cat_relatives = self._sort_categories(self._get_content('category'))
-            self._list_of_catalogs = self._get_content('catalog')
-        
-        def _sort_categories(self, categories):
-            list_of_categories = []
-            cat_relatives = {}
-            categories_sorted = sorted(categories, key=lambda x: int(x['id']))
-            if not len(categories_sorted):
-                return list_of_categories, cat_relatives
-            list_of_categories.append(categories_sorted[0])
-            cat_relatives[categories_sorted[0]['id']] = {'href': categories_sorted[0]['href'],
-                                                         'id': categories_sorted[0]['id']}
-            categories_sorted.pop(0)
-
-            # Im sorry for this double loop, ill try to optimize this
-            for tag in categories_sorted:
-                if tag['isRoot']:
-                    list_of_categories.append(tag)
-                    cat_relatives[tag['id']] = {'href': tag['href'],
-                                                'id': tag['id']}
-                    continue
-                for item in list_of_categories:
-                    if tag['parentId'] == item['id']:
-                        list_of_categories.insert(list_of_categories.index(item) + 1, tag)
-                        cat_relatives[tag['id']] = {'href': tag['href'],
-                                                    'id': tag['id'],
-                                                    'parentId': tag.get('parentId', '')}
-                        break
-            return list_of_categories, cat_relatives
-        
-        # This function is intended to make get requests to the api
-        def _get_content(self, content):
-            c = plugins.toolkit.c
-            filters = {
-                'lifecycleStatus': 'Launched'
-            }
-            if content == 'catalog':
-                filters['relatedParty.id'] = c.user
-            response = requests.get(
-                '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
-                    self.store_url, content), params=filters)
-            # Checking that the request finished successfully
-            try:
-                response.raise_for_status()
-            except Exception:
-                log.warn('{} couldnt be loaded'.format(content))
-                c.errors['{}'.format(
-                    content)] = ['{} couldnt be loaded'.format(content)]
-            return response.json()
-
-    instance = None
     
     def __init__(self, name=None):
-        if not PublishControllerUI.instance:
-            PublishControllerUI.instance = PublishControllerUI.controllerSingleton()
         self._store_connector = StoreConnector(config)
         self.store_url = self._store_connector.store_url
 
-    # def _sort_categories(self, categories):
-    #         list_of_categories = []
-    #         cat_relatives = {}
-    #         categories_sorted = sorted(categories, key=lambda x: int(x['id']))
-    #         if not len(categories_sorted):
-    #             return list_of_categories, cat_relatives
-    #         list_of_categories.append(categories_sorted[0])
-    #         cat_relatives[categories_sorted[0]['id']] = {'href': categories_sorted[0]['href'],
-    #                                                      'id': categories_sorted[0]['id']}
-    #         categories_sorted.pop(0)
+    def _sort_categories(self, categories):
+        list_of_categories = []
+        cat_relatives = {}
+        categories_sorted = sorted(categories, key=lambda x: int(x['id']))
+        if not len(categories_sorted):
+            return list_of_categories, cat_relatives
+        list_of_categories.append(categories_sorted[0])
+        cat_relatives[categories_sorted[0]['id']] = {'href': categories_sorted[0]['href'],
+                                                     'id': categories_sorted[0]['id']}
+        categories_sorted.pop(0)
 
-    #         # Im sorry for this double loop, ill try to optimize this
-    #         for tag in categories_sorted:
-    #             if tag['isRoot']:
-    #                 list_of_categories.append(tag)
-    #                 cat_relatives[tag['id']] = {'href': tag['href'],
-    #                                             'id': tag['id']}
-    #                 continue
-    #             for item in list_of_categories:
-    #                 if tag['parentId'] == item['id']:
-    #                     list_of_categories.insert(list_of_categories.index(item) + 1, tag)
-    #                     cat_relatives[tag['id']] = {'href': tag['href'],
-    #                                                 'id': tag['id'],
-    #                                                 'parentId': tag.get('parentId', '')}
-    #                     break
-    #         return list_of_categories, cat_relatives
+        # Im sorry for this double loop, ill try to optimize this
+        for tag in categories_sorted:
+            if tag['isRoot']:
+                list_of_categories.append(tag)
+                cat_relatives[tag['id']] = {'href': tag['href'],
+                                            'id': tag['id']}
+                continue
+            for item in list_of_categories:
+                if tag['parentId'] == item['id']:
+                    list_of_categories.insert(list_of_categories.index(item) + 1, tag)
+                    cat_relatives[tag['id']] = {'href': tag['href'],
+                                                'id': tag['id'],
+                                                'parentId': tag.get('parentId', '')}
+                    break
+        return list_of_categories, cat_relatives
         
-    # # This function is intended to make get requests to the api
-    # def _get_content(self, content):
-    #     c = plugins.toolkit.c
-    #     filters = {
-    #         'lifecycleStatus': 'Launched'
-    #     }
-    #     if content == 'catalog':
-    #         filters['relatedParty.id'] = c.user
-    #     response = requests.get(
-    #         '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
-    #             self.store_url, content), params=filters)
-    #     # Checking that the request finished successfully
-    #     try:
-    #         response.raise_for_status()
-    #     except Exception:
-    #         log.warn('{} couldnt be loaded'.format(content))
-    #         c.errors['{}'.format(
-    #             content)] = ['{} couldnt be loaded'.format(content)]
-    #     return response.json()
+    # This function is intended to make get requests to the api
+    def _get_content(self, content):
+        c = plugins.toolkit.c
+        filters = {
+            'lifecycleStatus': 'Launched'
+        }
+        if content == 'catalog':
+            filters['relatedParty.id'] = c.user
+        response = requests.get(
+            '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
+                self.store_url, content), params=filters)
+        # Checking that the request finished successfully
+        try:
+            response.raise_for_status()
+        except Exception:
+            log.warn('{} couldnt be loaded'.format(content))
+            c.errors['{}'.format(
+                content)] = ['{} couldnt be loaded'.format(content)]
+        return response.json()
 
     def publish(self, id, offering_info=None, errors=None):
 
@@ -177,6 +119,9 @@ class PublishControllerUI(base.BaseController):
         c.pkg_dict = dataset
         c.errors = {}
 
+        self._list_of_categories, self._cat_relatives = self._sort_categories(self._get_content('category'))
+        self._list_of_catalogs = self._get_content('catalog')
+        
         # Get categories in the expected format of the form select field
         def _getList(param):
             requiredFields = ['id', 'name']
@@ -189,8 +134,8 @@ class PublishControllerUI(base.BaseController):
             return result
 
         c.offering = {
-            'categories': _getList(self.instance._list_of_categories),
-            'catalogs': _getList(self.instance._list_of_catalogs)
+            'categories': _getList(self._list_of_categories),
+            'catalogs': _getList(self._list_of_catalogs)
         }
         # when the data is provided
         if request.POST:
@@ -207,11 +152,11 @@ class PublishControllerUI(base.BaseController):
 
             # Insert all parents in the set until there are no more new parents
             for cat in categories:
-                tempList.append(self.instance._cat_relatives[cat])
-                tempCat = self.instance._cat_relatives[cat]
+                tempList.append(self._cat_relatives[cat])
+                tempCat = self._cat_relatives[cat]
                 while 'parentId' in tempCat and tempCat['parentId']:
-                    tempList.append(self.instance._cat_relatives[tempCat['parentId']])
-                    tempCat = self.instance._cat_relatives[tempCat['parentId']]
+                    tempList.append(self._cat_relatives[tempCat['parentId']])
+                    tempCat = self._cat_relatives[tempCat['parentId']]
 
             for cat in tempList:
                 if 'parentId' in cat:
@@ -281,6 +226,6 @@ class PublishControllerUI(base.BaseController):
                 except StoreException as e:
                     c.errors['Store'] = [e.message]
             else:
-                c.offering['catalogs'] = _getList(self.instance._list_of_catalogs)
-                c.offering['categories'] = _getList(self.instance._list_of_categories)
+                c.offering['catalogs'] = _getList(self._list_of_catalogs)
+                c.offering['categories'] = _getList(self._list_of_categories)
         return tk.render('package/publish.html')
