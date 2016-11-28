@@ -25,7 +25,7 @@ import unittest
 import requests
 from decimal import Decimal
 
-from mock import MagicMock
+from mock import MagicMock, call
 from nose_parameterized import parameterized
 
 # Need to be defined here, since it will be used as tests parameter
@@ -715,14 +715,14 @@ class StoreConnectorTest(unittest.TestCase):
 
         if offering_created:
             headers = {'Content-Type': 'application/json'}
-            self.instance._make_request.assert_any_call(
+            self.instance._make_request.assert_called_once_with(
                 'patch',
                 '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/{2}'.format(
                     BASE_STORE_URL,
                     OFFERING_INFO_BASE['catalog'],
                     DATASET['id']
                 ),
-                headers, {'lifecycleStatus': 'Retired'})
+                headers, '{"lifecycleStatus": "Retired"}')
 
     @parameterized.expand([
         (True, None),
@@ -790,3 +790,55 @@ class StoreConnectorTest(unittest.TestCase):
         except store_connector.StoreException as e:
             self.instance._rollback.assert_called_once_with(OFFERING_INFO_BASE, offering_created)
             self.assertEquals(e.message, exception_text)
+
+    @parameterized.expand([
+        ([{
+            'href': 'http://store.lab.fiware.org/DSProductCatalog/offering/1',
+            'lifecycleStatus': 'Active'
+        }, {
+            'href': 'http://store.lab.fiware.org/DSProductCatalog/offering/2',
+            'lifecycleStatus': 'Launched'
+        }, {
+            'href': 'http://store.lab.fiware.org/DSProductCatalog/offering/3',
+            'lifecycleStatus': 'Retired'
+        }], [{
+            'id': '1',
+            'lifecycleStatus': 'Launched',
+            'href': 'http://store.lab.fiware.org/DSProductCatalog/product/1'
+        }], [
+            call('get', 'https://store.example.com:7458/DSProductCatalog/api/catalogManagement/v2/productOffering/?productSpecification.id=1'),
+            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/offering/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Launched"}'),
+            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/offering/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Retired"}'),
+            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/offering/2', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Retired"}'),
+            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Retired"}'),
+        ]),
+        ([], [{
+            'id': '1',
+            'lifecycleStatus': 'Active',
+            'href': 'http://store.lab.fiware.org/DSProductCatalog/product/1'
+        }], [
+            call('get', 'https://store.example.com:7458/DSProductCatalog/api/catalogManagement/v2/productOffering/?productSpecification.id=1'),
+            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Launched"}'),
+            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Retired"}'),
+        ])
+    ])
+    def test_delete_resources(self, offerings, product, calls):
+        response = MagicMock()
+        response.json.return_value = offerings
+
+        self.instance._make_request = MagicMock(return_value=response)
+        self.instance._get_existing_products = MagicMock(return_value=product)
+
+        self.instance.delete_attached_resources('dataset')
+
+        self.instance._get_existing_products.assert_called_once_with('dataset')
+        self.assertEquals(calls, self.instance._make_request.call_args_list)
+
+    def test_delete_resources_empty_product(self):
+        self.instance._make_request = MagicMock()
+        self.instance._get_existing_products = MagicMock(return_value=[])
+
+        self.instance.delete_attached_resources('dataset')
+
+        self.instance._get_existing_products.assert_called_once_with('dataset')
+        self.assertEquals(0, self.instance._make_request.call_count)

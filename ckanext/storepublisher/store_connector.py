@@ -238,7 +238,7 @@ class StoreConnector(object):
         # we should refresh the token and retry the request.
         if req.status_code == 401:
             log.info(
-                '%s(%s): returned 401. Token expired? Request will be retried with a refresehd token' % (method, url)
+                '%s(%s): returned 401. Token expired? Request will be retried with a refreshed token' % (method, url)
             )
             plugins.toolkit.c.usertoken_refresh()
             # Update the header 'Authorization'
@@ -329,20 +329,62 @@ class StoreConnector(object):
         # Return the resource
         return self._generate_product_info(resp_body)
 
-    def _rollback(self, offering_info, resource, offering_created):
+    def _retire_catalog_element(self, url):
+        headers = {'Content-Type': 'application/json'}
+        self._make_request(
+            'patch', url, headers, json.dumps({'lifecycleStatus': 'Retired'}))
 
+    def _launch_catalog_element(self, url):
+        headers = {'Content-Type': 'application/json'}
+        self._make_request(
+            'patch', url, headers, json.dumps({'lifecycleStatus': 'Launched'}))
+
+    def _rollback(self, offering_info, resource, offering_created):
         try:
             # Delete the offering only if it was created
             if offering_created:
-                headers = {'Content-Type': 'application/json'}
-                self._make_request(
-                    'patch', '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/{2}'.format(
-                        self.store_url,
-                        offering_info['catalog'],
-                        resource['id']),
-                    headers, {'lifecycleStatus': 'Retired'})
+                self._retire_catalog_element('{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/{2}'.format(
+                    self.store_url,
+                    offering_info['catalog'],
+                    resource['id'])
+                )
+
         except Exception as e:
             log.warn('Rollback failed %s' % e)
+
+    def _normalize_catalog_url(self, url):
+        result_url = url
+        if '(' in url:
+            result_url = url.split('(')[0][:-1]
+
+        return result_url
+
+    def delete_attached_resources(self, dataset):
+        products = self._get_existing_products(dataset)
+
+        if len(products) > 0:
+            product = products[0]
+            # Search the offerings that include the product
+            response = self._make_request('get', '{0}/DSProductCatalog/api/catalogManagement/v2/productOffering/?productSpecification.id={1}'.format(
+                self.store_url,
+                product['id']))
+
+            # Set the offerings as retired
+            active_statuses = ['active', 'launched']
+            for offering in response.json():
+                if offering['lifecycleStatus'].lower() in active_statuses:
+
+                    if offering['lifecycleStatus'].lower() == 'active':
+                        self._launch_catalog_element(self._normalize_catalog_url(offering['href']))
+
+                    self._retire_catalog_element(self._normalize_catalog_url(offering['href']))
+
+            # Set the product as retired
+            if product['lifecycleStatus'].lower() in active_statuses:
+                if product['lifecycleStatus'].lower() == 'active':
+                        self._launch_catalog_element(self._normalize_catalog_url(product['href']))
+
+                self._retire_catalog_element(self._normalize_catalog_url(product['href']))
 
     def create_offering(self, dataset, offering_info):
         '''
@@ -382,8 +424,6 @@ class StoreConnector(object):
                 resource = self._create_product(dataset, offering_info)
 
             offering = self._get_offering(offering_info, resource)
-            # offering_name = offering_info['name']
-            #  offering_version = offering_info['version']
             # Create the offering
             resp = self._make_request(
                 'post',
