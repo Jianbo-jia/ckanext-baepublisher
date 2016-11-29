@@ -327,16 +327,16 @@ class StoreConnectorTest(unittest.TestCase):
                 self.instance._make_request(method, url, headers, data)
                 self.assertEquals(ERROR_MSG, e.message)
                 store_connector.OAuth2Session.assert_called_once_with(token=usertoken)
-                req_method.assert_called_once_with(url, headers=expected_headers, data=data)
+                req_method.assert_called_once_with(url, headers=expected_headers, json=data)
         else:
             result = self.instance._make_request(method, url, headers, data)
 
             # If the first request returns a 401, the request is retried with a new access_token...
             if response_status != 401:
                 self.assertEquals(first_response, result)
-                req_method.assert_called_once_with(url, headers=expected_headers, data=data)
+                req_method.assert_called_once_with(url, headers=expected_headers, json=data)
                 store_connector.OAuth2Session.assert_called_once_with(token=usertoken)
-                req_method.assert_called_once_with(url, headers=expected_headers, data=data)
+                req_method.assert_called_once_with(url, headers=expected_headers, json=data)
             else:
                 # Check that the token has been refreshed
                 store_connector.plugins.toolkit.c.usertoken_refresh.assert_called_once_with()
@@ -354,8 +354,8 @@ class StoreConnectorTest(unittest.TestCase):
                 self.assertEquals(expected_headers, req_method.call_args_list[1][1]['headers'])
 
                 # Check Data
-                self.assertEquals(data, req_method.call_args_list[0][1]['data'])
-                self.assertEquals(data, req_method.call_args_list[1][1]['data'])
+                self.assertEquals(data, req_method.call_args_list[0][1]['json'])
+                self.assertEquals(data, req_method.call_args_list[1][1]['json'])
 
                 # Check response
                 self.assertEquals(second_response, result)
@@ -699,7 +699,7 @@ class StoreConnectorTest(unittest.TestCase):
             '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % BASE_STORE_URL)
         self.assertEqual(param[2], headers)
         self.maxDiff = None
-        self.assertEquals(json.loads(param[3]), resource)
+        self.assertEquals(param[3], resource)
 
         # Check that the acquire URL has been updated
         self.instance._update_acquire_url.assert_called_once_with(dataset, expected_resource)
@@ -723,7 +723,7 @@ class StoreConnectorTest(unittest.TestCase):
                     OFFERING_INFO_BASE['catalog'],
                     DATASET['id']
                 ),
-                headers, '{"lifecycleStatus": "Retired"}')
+                headers, {"lifecycleStatus": "Retired"})
 
     @parameterized.expand([
         (True, None),
@@ -786,7 +786,7 @@ class StoreConnectorTest(unittest.TestCase):
                 '%s/DSProductCatalog/api/catalogManagement/v2/catalog/%s/productOffering/' % (
                     base_url, OFFERING_INFO_BASE['catalog']),
                 headers,
-                json.dumps(offering))
+                offering)
 
         except store_connector.StoreException as e:
             self.instance._rollback.assert_called_once_with(OFFERING_INFO_BASE, offering_created)
@@ -808,10 +808,10 @@ class StoreConnectorTest(unittest.TestCase):
             'href': 'http://store.lab.fiware.org/DSProductCatalog/product/1'
         }], [
             call('get', 'https://store.example.com:7458/DSProductCatalog/api/catalogManagement/v2/productOffering/?productSpecification.id=1'),
-            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/offering/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Launched"}'),
-            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/offering/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Retired"}'),
-            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/offering/2', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Retired"}'),
-            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Retired"}'),
+            call('patch', 'https://store.example.com:7458/DSProductCatalog/offering/1', {'Content-Type': 'application/json'}, {"lifecycleStatus": "Launched"}),
+            call('patch', 'https://store.example.com:7458/DSProductCatalog/offering/1', {'Content-Type': 'application/json'}, {"lifecycleStatus": "Retired"}),
+            call('patch', 'https://store.example.com:7458/DSProductCatalog/offering/2', {'Content-Type': 'application/json'}, {"lifecycleStatus": "Retired"}),
+            call('patch', 'https://store.example.com:7458/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, {"lifecycleStatus": "Retired"}),
         ]),
         ([], [{
             'id': '1',
@@ -819,8 +819,8 @@ class StoreConnectorTest(unittest.TestCase):
             'href': 'http://store.lab.fiware.org/DSProductCatalog/product/1'
         }], [
             call('get', 'https://store.example.com:7458/DSProductCatalog/api/catalogManagement/v2/productOffering/?productSpecification.id=1'),
-            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Launched"}'),
-            call('patch', 'http://store.lab.fiware.org/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, '{"lifecycleStatus": "Retired"}'),
+            call('patch', 'https://store.example.com:7458/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, {"lifecycleStatus": "Launched"}),
+            call('patch', 'https://store.example.com:7458/DSProductCatalog/product/1', {'Content-Type': 'application/json'}, {"lifecycleStatus": "Retired"}),
         ])
     ])
     def test_delete_resources(self, offerings, product, calls):

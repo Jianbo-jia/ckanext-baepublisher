@@ -20,13 +20,13 @@ from __future__ import unicode_literals
 
 import ckan.model as model
 import ckan.plugins as plugins
-import json
 import logging
 import re
 
 from unicodedata import normalize
 from decimal import Decimal
 from requests_oauthlib import OAuth2Session
+from urlparse import urlparse
 
 log = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ class StoreConnector(object):
             '{}/charging/api/assetManagement/assets/uploadJob'.format(
                 self.store_url),
             headers,
-            json.dumps(body)
+            body
         ).headers.get('Location')
         return url
 
@@ -210,12 +210,6 @@ class StoreConnector(object):
                 }
             }]
 
-        # Set license
-        # This will be changed
-        ######################################################################
-        
-        #######################################################################
-
         return offering
 
     def _make_request(self, method, url, headers={}, data=None):
@@ -229,7 +223,7 @@ class StoreConnector(object):
             oauth_request = OAuth2Session(token=usertoken)
 
             req_method = getattr(oauth_request, method)
-            req = req_method(url, headers=final_headers, data=data)
+            req = req_method(url, headers=final_headers, json=data)
 
             return req
 
@@ -321,7 +315,7 @@ class StoreConnector(object):
             'post',
             '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % self.store_url,
             headers,
-            json.dumps(resource)
+            resource
         )
 
         resp_body = resp.json()
@@ -332,13 +326,15 @@ class StoreConnector(object):
 
     def _retire_catalog_element(self, url):
         headers = {'Content-Type': 'application/json'}
+        eff_url = self.store_url + urlparse(url).path
         self._make_request(
-            'patch', url, headers, json.dumps({'lifecycleStatus': 'Retired'}))
+            'patch', eff_url, headers, {'lifecycleStatus': 'Retired'})
 
     def _launch_catalog_element(self, url):
         headers = {'Content-Type': 'application/json'}
+        eff_url = self.store_url + urlparse(url).path
         self._make_request(
-            'patch', url, headers, json.dumps({'lifecycleStatus': 'Launched'}))
+            'patch', eff_url, headers, {'lifecycleStatus': 'Launched'})
 
     def _rollback(self, offering_info, resource, offering_created):
         try:
@@ -361,6 +357,16 @@ class StoreConnector(object):
         return result_url
 
     def delete_attached_resources(self, dataset):
+        """
+        Method to delete all the attached store resources to a dataset. In particular, the method searches for a
+        product specification containing the dataset, and the offerings that include the product. Then changes the
+        status off these elements to Retired
+        This method is triggered when the dataset is going to be deleted
+
+        :param dataset:
+        :type dataset: dict
+        """
+
         products = self._get_existing_products(dataset)
 
         if len(products) > 0:
@@ -388,7 +394,7 @@ class StoreConnector(object):
                 self._retire_catalog_element(self._normalize_catalog_url(product['href']))
 
     def create_offering(self, dataset, offering_info):
-        '''
+        """
         Method to create an offering in the store that will contain the given dataset.
         The method will check if there is a resource in the Store that contains the
         dataset. If so, this resource will be used to create the offering. Otherwise
@@ -408,7 +414,7 @@ class StoreConnector(object):
 
         :raises StoreException: When the store cannot be connected or when the Store
             returns some errors
-        '''
+        """
 
         log.debug('Creating Offering %s' % offering_info['name'])
         offering_created = False
@@ -431,7 +437,7 @@ class StoreConnector(object):
                 '{0}/DSProductCatalog/api/catalogManagement/v2/catalog/{1}/productOffering/'.format(
                     self.store_url,
                     offering_info['catalog']),
-                headers, json.dumps(offering)
+                headers, offering
             )
             offering_created = True
 
