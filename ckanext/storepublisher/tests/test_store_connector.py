@@ -127,6 +127,8 @@ class StoreConnectorTest(unittest.TestCase):
     ])
     def test_get_product(self, dataset):
         self.instance._upload_image = MagicMock(return_value="urlExample")
+        store_connector.datetime = MagicMock()
+        store_connector.datetime.now().isoformat.return_value = '2016-05-03T10:00:00Z'
 
         dataset = DATASET.copy()
                                                 
@@ -140,7 +142,9 @@ class StoreConnectorTest(unittest.TestCase):
             "isBundle": False,
             "brand": c.user,
             "lifecycleStatus": "Launched",
-            "validFor": {},
+            "validFor": {
+                'startDateTime': '2016-05-03T10:00:00Z'
+            },
             "relatedParty": [{
                 "id": c.user,
                 "href": ("{}/DSPartyManagement/api/partyManagement/v2/individual/{}".format(BASE_STORE_URL, c.user)),
@@ -566,6 +570,8 @@ class StoreConnectorTest(unittest.TestCase):
         # req = MagicMock()
         # req.json = MagicMock(return_value=location['Location'])
         self.instance._upload_image = MagicMock(return_value=location['Location'])
+        store_connector.datetime = MagicMock()
+        store_connector.datetime.now().isoformat.return_value = '2016-05-03T10:00:00Z'
 
         c = store_connector.plugins.toolkit.c
         c.user = 'provider name'
@@ -577,7 +583,9 @@ class StoreConnectorTest(unittest.TestCase):
             'isBundle': False,
             'brand': c.user,
             'lifecycleStatus': 'Launched',
-            'validFor': {},
+            'validFor': {
+                'startDateTime': '2016-05-03T10:00:00Z'
+            },
             'relatedParty': [{
                 'id': c.user,
                 'href': ('{}/DSPartyManagement/api/partyManagement/v2/individual/{}'.format(BASE_STORE_URL, c.user)),

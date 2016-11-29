@@ -23,6 +23,7 @@ import ckan.plugins as plugins
 import logging
 import re
 
+from datetime import datetime
 from unicodedata import normalize
 from decimal import Decimal
 from requests_oauthlib import OAuth2Session
@@ -105,7 +106,9 @@ class StoreConnector(object):
         resource['isBundle'] = False
         resource['brand'] = c.user  # Name of the author
         resource['lifecycleStatus'] = 'Launched'
-        resource['validFor'] = {}
+        resource['validFor'] = {
+            'startDateTime': datetime.now().isoformat()
+        }
         resource['relatedParty'] = [{
             'id': c.user,
             'href': (
