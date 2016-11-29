@@ -60,7 +60,7 @@ class StoreConnector(object):
         url = url[:-1] if url.endswith('/') else url
         return url
 
-    def _validate_version(self, version):
+    def validate_version(self, version):
         ver = version
         if not ver:
             ver = '1.0'
@@ -99,7 +99,7 @@ class StoreConnector(object):
         c = plugins.toolkit.c
         resource = {}
         resource['productNumber'] = product['id']
-        resource['version'] = self._validate_version(product['version'])
+        resource['version'] = self.validate_version(product['version'])
         resource['name'] = product['title']
         resource['description'] = product['notes']
         resource['isBundle'] = False
@@ -182,13 +182,14 @@ class StoreConnector(object):
         return resource
 
     def _get_offering(self, offering_info, product):
-        offering = {}
-        offering['name'] = offering_info['name']
-        offering['version'] = offering_info['version']
-        offering['lifecycleStatus'] = 'Launched'
-        offering['productSpecification'] = product
-
-        offering['category'] = offering_info['categories']
+        offering = {
+            'name': offering_info['name'],
+            'version':  offering_info['version'],
+            'description': offering_info['description'],
+            'lifecycleStatus': 'Launched',
+            'productSpecification': product,
+            'category': offering_info['categories'],
+        }
         # Set price
         if 'price' not in offering_info or offering_info['price'] == 0.0:
             offering['productOfferingPrice'] = []

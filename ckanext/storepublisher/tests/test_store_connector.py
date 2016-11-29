@@ -245,6 +245,7 @@ class StoreConnectorTest(unittest.TestCase):
         expected_offering = {
             'name': offering_info['name'],
             'version': offering_info['version'],
+            'description': offering_info['description'],
             'lifecycleStatus': 'Launched',
             'productSpecification': resource,
             'category': offering_info['categories']

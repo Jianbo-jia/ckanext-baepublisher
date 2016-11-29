@@ -17,6 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import unicode_literals
+
 import base64
 import ckan.lib.base as base
 import ckan.lib.helpers as helpers
@@ -139,14 +141,15 @@ class PublishControllerUI(base.BaseController):
         }
         # when the data is provided
         if request.POST:
-            offering_info = {}
-            offering_info['pkg_id'] = request.POST.get('pkg_id', '')
-            offering_info['name'] = request.POST.get('name', '')
-            offering_info['description'] = request.POST.get('description', '')
-            offering_info['version'] = self._store_connector._validate_version(request.POST.get('version', ''))
-            offering_info['is_open'] = 'open' in request.POST
-            offering_info['license_title'] = request.POST.get('license_title', '')
-            offering_info['license_description'] = request.POST.get('license_description', '')
+            offering_info = {
+                'pkg_id': request.POST.get('pkg_id', ''),
+                'name': request.POST.get('name', ''),
+                'description': request.POST.get('description', ''),
+                'version': self._store_connector.validate_version(request.POST.get('version', '')),
+                'is_open': 'open' in request.POST,
+                'license_title': request.POST.get('license_title', ''),
+                'license_description': request.POST.get('license_description', ''),
+            }
             categories = request.POST.getall('categories')
             tempList = []
 

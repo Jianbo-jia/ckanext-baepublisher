@@ -258,7 +258,7 @@ class UIControllerTest(unittest.TestCase):
         controller.request.POST = post_content
         self._store_connector_instance.create_offering = MagicMock(
             side_effect=[create_offering_res])
-        self._store_connector_instance._validate_version = MagicMock(return_value='1.0')
+        self._store_connector_instance.validate_version = MagicMock(return_value='1.0')
         user = controller.plugins.toolkit.c.user
         pkg_id = post_content.get('pkg_id')
         # pkg_id = 'dhjus2-fdsjwdf-fq-dsjager'
