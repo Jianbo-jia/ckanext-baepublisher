@@ -20,7 +20,7 @@
 from setuptools import setup, find_packages
 import sys, os
 
-version = '0.3.2'
+version = '0.4'
 
 setup(
     name='ckanext-storepublisher',
@@ -30,8 +30,8 @@ setup(
     ''',
     classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
     keywords='',
-    author='Aitor Magan',
-    author_email='amagan@conwet.com',
+    author='Aitor Magan, Francisco de la Vega',
+    author_email='fdelavega@conwet.com',
     url='',
     license='',
     packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
