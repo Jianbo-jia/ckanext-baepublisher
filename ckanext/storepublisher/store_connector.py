@@ -98,6 +98,30 @@ class StoreConnector(object):
 
     def _get_product(self, product, content_info):
         c = plugins.toolkit.c
+        type_ = 'CKAN Dataset'
+
+        if len(content_info['role']) > 0:
+            type_ = 'CKAN API Dataset'
+            # If there is a role defined it is needed to register the asset
+            body = {
+                'contentType': product['type'],
+                'resourceType': 'CKAN API Dataset',
+                'isPublic': False,
+                'content': '{}/dataset/{}'.format(self.site_url, product['id']),
+                'metadata': {
+                    'role': content_info['role']
+                }
+            }
+            headers = {'Accept': 'application/json',
+                   'Content-type': 'application/json'}
+            self._make_request(
+                'post',
+                '{}/charging/api/assetManagement/assets/uploadJob'.format(
+                self.store_url),
+                headers,
+                body
+            )
+
         resource = {}
         resource['productNumber'] = product['id']
         resource['version'] = self.validate_version(product['version'])
@@ -148,7 +172,7 @@ class StoreConnector(object):
             'productSpecCharacteristicValue': [{
                 "valueType": "string",
                 "default": True,
-                "value": 'CKAN Dataset',
+                "value": type_,
                 "unitOfMeasure": "",
                 "valueFrom": "",
                 "valueTo": ""

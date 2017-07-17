@@ -12,6 +12,7 @@
 {% set is_open = offering['is_open'] if offering else True %}
 {% set update_acquire_url = offering['update_acquire_url'] if offering else True %}
 {% set catalogs = offering['catalogs'] %}
+{% set role = offering['role'] if offering else '' %}
 
 {% if offering['license_title'] %}
   {% set license_title = offering['license_title'] %}
@@ -73,6 +74,10 @@ then itself be extended to add/remove blocks of functionality. #}
     {{ form.textarea('license_description', id='field-license_description', label=_('License Description'), placeholder=_('License description. You can find license definitions at opendefinition.org'), value=license_description, error=errors.notes) }}
   {% endblock %}
 
+  {% block offering_role %}
+    {{ form.input('role', id='field-role', label=_('Acquisition Role'), placeholder=_('eg. query_customer'), value=role, classes=['control-full', 'control-medium']) }}
+  {% endblock %}
+  
   {% block image %}
     <div class="control-group control-full" style="display: block;">
       <label class="control-label" for="field-image_upload">{% trans %}Image{% endtrans %}</label>

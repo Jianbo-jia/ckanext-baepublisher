@@ -149,6 +149,7 @@ class PublishControllerUI(base.BaseController):
                 'is_open': 'open' in request.POST,
                 'license_title': request.POST.get('license_title', ''),
                 'license_description': request.POST.get('license_description', ''),
+                'role': request.POST.get('role', '')
             }
             categories = request.POST.getall('categories')
             tempList = []
