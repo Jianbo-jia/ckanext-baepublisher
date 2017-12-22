@@ -456,14 +456,11 @@ class StoreConnectorTest(unittest.TestCase):
                 dataset, current_user_resources[id_correct_resource])
 
     @parameterized.expand([
-        ([{'Location': 'EXAMPLEURL',
-          'success': True}]),
-        ([{'Location': 'EXAMPLEURL',
-           'success': True}], 'customer'),
-        ([{'Location': 'EXAMPLEURL',
-          'success': False}])
+        ('basic', {'Location': 'EXAMPLEURL', 'success': True}),
+        ('role', {'Location': 'EXAMPLEURL', 'success': True}, 'customer'),
+        ('upload_error', {'Location': 'EXAMPLEURL', 'success': False})
     ])
-    def test_create_product(self, location, role=''):
+    def test_create_product(self, name, location, role=''):
         self.instance._upload_image = MagicMock(return_value=location['Location'])
         store_connector.datetime = MagicMock()
         store_connector.datetime.now().isoformat.return_value = '2016-05-03T10:00:00Z'
@@ -613,7 +610,7 @@ class StoreConnectorTest(unittest.TestCase):
                 'contentType': dataset['type'],
                 'resourceType': 'CKAN API Dataset',
                 'isPublic': False,
-                'content': '{}/dataset/{}'.format(BASE_STORE_URL, dataset['id']),
+                'content': '{}/dataset/{}'.format(BASE_SITE_URL, dataset['id']),
                 'metadata': {
                     'role': role
                 }
