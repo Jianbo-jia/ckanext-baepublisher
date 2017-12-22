@@ -18,7 +18,7 @@
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import unicode_literals
-import ckanext.storepublisher.store_connector as store_connector
+import ckanext.baepublisher.store_connector as store_connector
 
 import unittest
 import requests
@@ -77,7 +77,7 @@ class StoreConnectorTest(unittest.TestCase):
 
         self.config = {
             'ckan.site_url': BASE_SITE_URL,
-            'ckan.storepublisher.store_url': BASE_STORE_URL,
+            'ckan.baepublisher.store_url': BASE_STORE_URL,
         }
 
         self.instance = store_connector.StoreConnector(self.config)
@@ -111,7 +111,7 @@ class StoreConnectorTest(unittest.TestCase):
 
         config = {
             'ckan.site_url': site_url,
-            'ckan.storepublisher.store_url': store_url,
+            'ckan.baepublisher.store_url': store_url,
         }
 
         instance = store_connector.StoreConnector(config)

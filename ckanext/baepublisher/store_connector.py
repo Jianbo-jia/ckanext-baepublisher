@@ -54,7 +54,7 @@ class StoreConnector(object):
 
     def __init__(self, config):
         self.site_url = self._get_url(config, 'ckan.site_url')
-        self.store_url = self._get_url(config, 'ckan.storepublisher.store_url')
+        self.store_url = self._get_url(config, 'ckan.baepublisher.store_url')
 
     def _get_url(self, config, config_property):
         url = config.get(config_property, '')

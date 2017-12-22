@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 CoNWeT Lab., Universidad Politécnica de Madrid
+# Copyright (c) 2014 - 2017 CoNWeT Lab., Universidad Politécnica de Madrid
 
 # This file is part of CKAN Store Publisher Extension.
 
@@ -38,12 +38,12 @@ class StorePublisher(plugins.SingletonPlugin):
         plugins.toolkit.add_template_directory(config, 'templates')
 
         # Register this plugin's fanstatic directory with CKAN.
-        plugins.toolkit.add_resource('fanstatic', 'storepublisher')
+        plugins.toolkit.add_resource('fanstatic', 'baepublisher')
 
     def before_map(self, m):
         # Publish data offering controller
         m.connect('dataset_publish', '/dataset/publish/{id}', action='publish',
-                  controller='ckanext.storepublisher.controllers.ui_controller:PublishControllerUI',
+                  controller='ckanext.baepublisher.controllers.ui_controller:PublishControllerUI',
                   ckan_icon='shopping-cart')
         return m
 

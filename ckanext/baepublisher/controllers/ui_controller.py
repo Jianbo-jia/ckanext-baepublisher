@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014-2015 CoNWeT Lab., Universidad Politécnica de Madrid
+# Copyright (c) 2014-2017 CoNWeT Lab., Universidad Politécnica de Madrid
 
 # This file is part of CKAN Store Publisher Extension.
 
@@ -28,7 +28,7 @@ import logging
 import os
 import requests
 
-from ckanext.storepublisher.store_connector import StoreConnector, StoreException
+from ckanext.baepublisher.store_connector import StoreConnector, StoreException
 from ckan.common import request
 from pylons import config
 

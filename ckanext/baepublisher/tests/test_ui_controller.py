@@ -18,13 +18,12 @@
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import unicode_literals
-import ckanext.storepublisher.controllers.ui_controller as controller
+import ckanext.baepublisher.controllers.ui_controller as controller
 import base64
 import os
 import unittest
 import requests
 
-from mock import patch
 from mock import MagicMock
 from nose_parameterized import parameterized
 
