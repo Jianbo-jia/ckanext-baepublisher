@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 CoNWeT Lab., Universidad Politécnica de Madrid
+# Copyright (c) 2014 - 2017 CoNWeT Lab., Universidad Politécnica de Madrid
 
 # This file is part of CKAN Store Publisher Extension.
 
@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
 
-import ckanext.storepublisher.plugin as plugin
+import ckanext.baepublisher.plugin as plugin
 
 import unittest
 
@@ -58,7 +58,7 @@ class PluginTest(unittest.TestCase):
 
         # Check that the config has been updated
         plugin.plugins.toolkit.add_template_directory.assert_called_once_with(config, 'templates')
-        plugin.plugins.toolkit.add_resource.assert_called_once_with('fanstatic', 'storepublisher')
+        plugin.plugins.toolkit.add_resource.assert_called_once_with('fanstatic', 'baepublisher')
 
     def test_map(self):
         # Call the method
@@ -67,7 +67,7 @@ class PluginTest(unittest.TestCase):
 
         # Test that the connect method has been called
         m.connect.assert_called_once_with('dataset_publish', '/dataset/publish/{id}', action='publish',
-                                          controller='ckanext.storepublisher.controllers.ui_controller:PublishControllerUI',
+                                          controller='ckanext.baepublisher.controllers.ui_controller:PublishControllerUI',
                                           ckan_icon='shopping-cart')
 
     def test_after_delete(self):
