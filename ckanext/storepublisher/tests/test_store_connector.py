@@ -20,7 +20,6 @@
 from __future__ import unicode_literals
 import ckanext.storepublisher.store_connector as store_connector
 
-import json
 import unittest
 import requests
 from decimal import Decimal
@@ -602,7 +601,7 @@ class StoreConnectorTest(unittest.TestCase):
         # Check the requests
         req_args = self.instance._make_request.call_args_list
         exp_call_args = [
-            ('post', '{}/DSProductCatalog/api/catalogManagement/v2/productSpecification/'.format(BASE_STORE_URL), headers, resource)]
+            call('post', '{}/DSProductCatalog/api/catalogManagement/v2/productSpecification/'.format(BASE_STORE_URL), headers, resource)]
 
         if len(role) > 0:
             asset_headers = {
@@ -621,7 +620,7 @@ class StoreConnectorTest(unittest.TestCase):
             }
 
             exp_call_args.insert(0,
-                ('post', '{}/charging/api/assetManagement/assets/uploadJob'.format(BASE_STORE_URL), asset_headers, asset))
+                call('post', '{}/charging/api/assetManagement/assets/uploadJob'.format(BASE_STORE_URL), asset_headers, asset))
 
         self.assertEquals(req_args, exp_call_args)
 
