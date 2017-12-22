@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2015 Conwet Lab., Universidad Politécnica de Madrid
+# Copyright (C) 2015 - 2017 Conwet Lab., Universidad Politécnica de Madrid
 
 # This file is part of CKAN Store Publisher Extension.
 
@@ -118,109 +118,6 @@ class StoreConnectorTest(unittest.TestCase):
         instance = store_connector.StoreConnector(config)
         self.assertEquals(BASE_SITE_URL, instance.site_url)
         self.assertEquals(BASE_STORE_URL, instance.store_url)
-
-    @parameterized.expand([
-        ([{'id': 'example_id',
-           'title': 'Dataset A',
-           'notes': 'Dataset description. This can be a very long field and can include markdown syntax'}]),
-        ([DATASET])
-    ])
-    def test_get_product(self, dataset):
-        self.instance._upload_image = MagicMock(return_value="urlExample")
-        store_connector.datetime = MagicMock()
-        store_connector.datetime.now().isoformat.return_value = '2016-05-03T10:00:00Z'
-
-        dataset = DATASET.copy()
-                                                
-        c = store_connector.plugins.toolkit.c
-        c.user = "provider name"
-        resource = {
-            "productNumber": DATASET["id"],
-            "name": DATASET["name"],
-            "version": DATASET["version"],
-            "description": DATASET["notes"],
-            "isBundle": False,
-            "brand": c.user,
-            "lifecycleStatus": "Launched",
-            "validFor": {
-                'startDateTime': '2016-05-03T10:00:00Z'
-            },
-            "relatedParty": [{
-                "id": c.user,
-                "href": ("{}/DSPartyManagement/api/partyManagement/v2/individual/{}".format(BASE_STORE_URL, c.user)),
-                "role": "Owner"
-            }],
-            "attachment": [{
-                "type": "Picture",
-                "url": "urlExample"
-            }],
-            "bundledProductSpecification": [],
-            "productSpecificationRelationship": [],
-            "serviceSpecification": [],
-            "resourceSpecification": [],
-            "productSpecCharacteristic": [{
-                "configurable": False,
-                "name": "Media Type",
-                "valueType": "string",
-                "productSpecCharacteristicValue": [{
-                    "valueType": "string",
-                    "default": True,
-                    "value": DATASET["type"],
-                    "unitOfMeasure": "",
-                    "valueFrom": "",
-                    "valueTo": ""
-                }]
-            }, {
-                "configurable": False,
-                "name": "Asset Type",
-                "valueType": "string",
-                "productSpecCharacteristicValue": [{
-                    "valueType": "string",
-                    "default": True,
-                    "value": "CKAN Dataset",
-                    "unitOfMeasure": "",
-                    "valueFrom": "",
-                    "valueTo": ""
-                }]
-            }, {
-                "configurable": False,
-                "name": "Location",
-                "valueType": "string",
-                "productSpecCharacteristicValue": [{
-                    "valueType": "string",
-                    "default": True,
-                    "unitOfMeasure": "",
-                    "valueFrom": "",
-                    "valueTo": "",
-                    "value": "{}/dataset/{}".format(BASE_SITE_URL, DATASET["id"])
-                }]
-            }, {
-                "configurable": False,
-                "name": "License",
-                "valueType": "string",
-                "description": "Use it and maybe buy me a beer",
-                "productSpecCharacteristicValue": [{
-                    "valueType": "string",
-                    "default": True,
-                    "unitOfMeasure": "",
-                    "valueFrom": "",
-                    "valueTo": "",
-                    "value": "beerware"
-                }]
-            }]
-        }
-        
-        # Thanks stackoverflow.
-        # I use this just in order to convert the encode of the dict i get
-        
-        product = self.instance._get_product(dataset,
-                                             {"image_base64": "asdf",
-                                              "license_title": "beerware",
-                                              "license_description": "Use it and maybe buy me a beer"})
-        # Check the values
-        self.maxDiff = None
-
-        self.assertEquals(resource, product)
 
     @parameterized.expand([
         (0,),
@@ -563,18 +460,19 @@ class StoreConnectorTest(unittest.TestCase):
         ([{'Location': 'EXAMPLEURL',
           'success': True}]),
         ([{'Location': 'EXAMPLEURL',
+           'success': True}], 'customer'),
+        ([{'Location': 'EXAMPLEURL',
           'success': False}])
     ])
-    def test_create_product(self, location):
-        # set dependencies
-        # req = MagicMock()
-        # req.json = MagicMock(return_value=location['Location'])
+    def test_create_product(self, location, role=''):
         self.instance._upload_image = MagicMock(return_value=location['Location'])
         store_connector.datetime = MagicMock()
         store_connector.datetime.now().isoformat.return_value = '2016-05-03T10:00:00Z'
 
         c = store_connector.plugins.toolkit.c
         c.user = 'provider name'
+        value = 'CKAN API Dataset' if len(role) > 0 else 'CKAN Dataset'
+
         resource = {
             'productNumber': DATASET['id'],
             'name': DATASET['name'],
@@ -618,7 +516,7 @@ class StoreConnectorTest(unittest.TestCase):
                 'productSpecCharacteristicValue': [{
                     "valueType": "string",
                     "default": True,
-                    "value": 'CKAN Dataset',
+                    "value": value,
                     "unitOfMeasure": "",
                     "valueFrom": "",
                     "valueTo": ""
@@ -681,33 +579,51 @@ class StoreConnectorTest(unittest.TestCase):
         req = MagicMock()
         self.instance._update_acquire_url = MagicMock()
 
-        # Call the function and check that we recieve the correct result
-
+        # Call the function and check that we receive the correct result
         req.json.return_value = expected_resource
         dataset['type'] = 'testField'
 
         self.instance._make_request = MagicMock(return_value=req)
 
-        content_info = {'version': '1.7',
-                        'image_base64': 'IMGB4/png/data',
-                        'license_title': 'beerware',
-                        'license_description': 'Use it and maybe buy me a beer'}
+        content_info = {
+            'version': '1.7',
+            'image_base64': 'IMGB4/png/data',
+            'license_title': 'beerware',
+            'license_description': 'Use it and maybe buy me a beer',
+            'role': role
+        }
+
         self.assertEquals(expected_info, self.instance._create_product(dataset, content_info))
 
         # Assert that the methods has been called
         headers = {'Content-Type': 'application/json'}
         # self.instance._make_request.assert_called_once
 
-        lis = self.instance._make_request.call_args_list
-        self.assertEquals(len(lis), 1)
-        param = lis[0][0]
-        self.assertEqual(param[0], 'post')
-        self.assertEqual(
-            param[1],
-            '%s/DSProductCatalog/api/catalogManagement/v2/productSpecification/' % BASE_STORE_URL)
-        self.assertEqual(param[2], headers)
-        self.maxDiff = None
-        self.assertEquals(param[3], resource)
+        # Check the requests
+        req_args = self.instance._make_request.call_args_list
+        exp_call_args = [
+            ('post', '{}/DSProductCatalog/api/catalogManagement/v2/productSpecification/'.format(BASE_STORE_URL), headers, resource)]
+
+        if len(role) > 0:
+            asset_headers = {
+                'Accept': 'application/json',
+                'Content-type': 'application/json'
+            }
+
+            asset = {
+                'contentType': dataset['type'],
+                'resourceType': 'CKAN API Dataset',
+                'isPublic': False,
+                'content': '{}/dataset/{}'.format(BASE_STORE_URL, dataset['id']),
+                'metadata': {
+                    'role': role
+                }
+            }
+
+            exp_call_args.insert(0,
+                ('post', '{}/charging/api/assetManagement/assets/uploadJob'.format(BASE_STORE_URL), asset_headers, asset))
+
+        self.assertEquals(req_args, exp_call_args)
 
         # Check that the acquire URL has been updated
         self.instance._update_acquire_url.assert_called_once_with(dataset, expected_resource)

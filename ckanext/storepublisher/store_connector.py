@@ -112,12 +112,14 @@ class StoreConnector(object):
                     'role': content_info['role']
                 }
             }
-            headers = {'Accept': 'application/json',
-                   'Content-type': 'application/json'}
+            headers = {
+                'Accept': 'application/json',
+                'Content-type': 'application/json'
+            }
+
             self._make_request(
                 'post',
-                '{}/charging/api/assetManagement/assets/uploadJob'.format(
-                self.store_url),
+                '{}/charging/api/assetManagement/assets/uploadJob'.format(self.store_url),
                 headers,
                 body
             )

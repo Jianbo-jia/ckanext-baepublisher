@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 CoNWeT Lab., Universidad Politécnica de Madrid
+# Copyright (c) 2014 - 2017 CoNWeT Lab., Universidad Politécnica de Madrid
 
 # This file is part of CKAN Store Publisher Extension.
 
@@ -342,7 +342,8 @@ class UIControllerTest(unittest.TestCase):
                     'categories': tags,
                     'catalog': catalog,
                     'price': real_price,
-                    'image_base64': expected_image
+                    'image_base64': expected_image,
+                    'role': ''
                 }
 
                 self._store_connector_instance.create_offering.assert_called_once_with(current_package, expected_data)
