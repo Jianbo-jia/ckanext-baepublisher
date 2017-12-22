@@ -13,6 +13,9 @@ git clone https://github.com/ckan/ckan
 cd ckan
 git checkout ckan-$CKANVERSION
 python setup.py develop
+
+sed -i "s|psycopg2==2.4.5|psycopg2==2.7.1|g" requirements.txt
+
 pip install -r requirements.txt --allow-all-external
 pip install -r dev-requirements.txt --allow-all-external
 cd -
@@ -38,7 +41,7 @@ cd ckan
 paster db init -c test-core.ini
 cd -
 
-echo "Installing ckanext-wirecloud_view and its requirements..."
+echo "Installing ckanext-baepublisher and its requirements..."
 python setup.py develop
 
 echo "travis-build.bash is done."
