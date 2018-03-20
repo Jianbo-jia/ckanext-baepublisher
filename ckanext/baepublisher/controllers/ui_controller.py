@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 filepath = os.path.join(__dir__, '../assets/logo-ckan.png')
-VERIFY_SSL = bool(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'))
+VERIFY_SSL = not bool(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'))
 
 with open(filepath, 'rb') as f:
     LOGO_CKAN_B64 = base64.b64encode(f.read())
