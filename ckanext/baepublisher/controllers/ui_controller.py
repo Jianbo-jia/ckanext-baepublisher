@@ -36,6 +36,7 @@ log = logging.getLogger(__name__)
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 filepath = os.path.join(__dir__, '../assets/logo-ckan.png')
+VERIFY_SSL = bool(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'))
 
 with open(filepath, 'rb') as f:
     LOGO_CKAN_B64 = base64.b64encode(f.read())
@@ -84,7 +85,7 @@ class PublishControllerUI(base.BaseController):
             filters['relatedParty.id'] = c.user
         response = requests.get(
             '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
-                self.store_url, content), params=filters)
+                self.store_url, content), params=filters, verify=VERIFY_SSL)
         # Checking that the request finished successfully
         try:
             response.raise_for_status()
