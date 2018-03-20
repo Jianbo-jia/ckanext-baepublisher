@@ -616,8 +616,10 @@ class StoreConnectorTest(unittest.TestCase):
                 }
             }
 
-            exp_call_args.insert(0,
-                call('post', '{}/charging/api/assetManagement/assets/uploadJob'.format(BASE_STORE_URL), asset_headers, asset))
+            exp_call_args.insert(
+                0,
+                call('post', '{}/charging/api/assetManagement/assets/uploadJob'.format(BASE_STORE_URL), asset_headers, asset)
+            )
 
         self.assertEquals(req_args, exp_call_args)
 
@@ -666,7 +668,7 @@ class StoreConnectorTest(unittest.TestCase):
         }
 
         expected_result = BASE_STORE_URL + '/DSProductCatalog/api/catalogManagement/v2/productOffering/:' + resource.get('id')
-        
+
         self.instance._generate_product_info = MagicMock(return_value=resource)
         self.instance._get_offering = MagicMock(return_value=offering)
         self.instance._get_existing_product = MagicMock(return_value=resource if resource_exists else None)

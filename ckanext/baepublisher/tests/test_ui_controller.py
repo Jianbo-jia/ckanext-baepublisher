@@ -76,10 +76,10 @@ class UIControllerTest(unittest.TestCase):
 
         def __contains__(self, key):
             return key in self.dic
-            
+
         def json(self):
             return self.json_data
-        
+
         def raise_for_status(self):
             self.called_Raise = True
             if self.status_code != 200:
@@ -92,13 +92,13 @@ class UIControllerTest(unittest.TestCase):
                 return self.dic[field]
             else:
                 return default
-            
+
         def getall(self, field):
             if 'categories' in self.dic:
                 return self.dic['categories']
             else:
                 return []
-    
+
     @parameterized.expand([
         # Incorrect parameter
         ('offering', MockResponse({}, 403, []), {'lifecycleStatus': 'Launched'}),
@@ -114,7 +114,7 @@ class UIControllerTest(unittest.TestCase):
         controller.plugins.toolkit.c.errors = {}
 
         r = self.instanceController._get_content(content)
-        
+
         requests.get.assert_called_once_with(
             '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
                 self._store_connector_instance.store_url, content),
@@ -127,7 +127,7 @@ class UIControllerTest(unittest.TestCase):
             self.assertEquals(controller.plugins.toolkit.c.errors[content], ['{} couldnt be loaded'.format(content)])
             self.assertEquals(self.instanceController._get_content(content), {})
             self.assertTrue(resp.called_Raise)
-        
+
     @parameterized.expand([
         # (False, False, {},),
         # # Test missing fields and wrong version
@@ -247,7 +247,7 @@ class UIControllerTest(unittest.TestCase):
                 return package_update
 
         tkString = 'Offering <a href="{0}" target="_blank">{1}</a> published correctly.'.format(create_offering_res, post_content.get('name', ''))
-        
+
         controller.plugins.toolkit.get_action = MagicMock(side_effect=_get_action_side_effect)
         controller.plugins.toolkit.check_access = MagicMock(
             side_effect=self._toolkit.NotAuthorized if allowed is False else None)
@@ -269,7 +269,7 @@ class UIControllerTest(unittest.TestCase):
 
         # Call the function
         self.instanceController.publish(pkg_id, post_content.dic)
-        
+
         # Check that the check_access function has been called
         controller.plugins.toolkit.check_access.assert_called_once_with(
             'package_update', expected_context, {'id': pkg_id})
@@ -294,7 +294,7 @@ class UIControllerTest(unittest.TestCase):
 
             # Get catalog
             catalog = post_content.get('catalogs')
-    
+
             # Calculate errors
             if 'name' not in post_content:
                 errors['Name'] = [MISSING_ERROR]

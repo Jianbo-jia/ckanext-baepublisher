@@ -44,7 +44,7 @@ def slugify(text, delim=' '):
 
     return delim.join(result)
 
-    
+
 class StoreException(Exception):
     pass
 
@@ -72,7 +72,7 @@ class StoreConnector(object):
         if re.search(r'^\.', ver) is not None:
             ver = "1" + ver
         return ver
-    
+
     def _get_dataset_url(self, dataset):
         return '%s/dataset/%s' % (self.site_url, dataset['id'])
 
@@ -207,13 +207,13 @@ class StoreConnector(object):
                     "valueTo": ""
                 }]
             })
-            
+
         return resource
 
     def _get_offering(self, offering_info, product):
         offering = {
             'name': offering_info['name'],
-            'version':  offering_info['version'],
+            'version': offering_info['version'],
             'description': offering_info['description'],
             'lifecycleStatus': 'Launched',
             'productSpecification': product,

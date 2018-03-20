@@ -18,7 +18,6 @@
 # along with CKAN Store Publisher Extension.  If not, see <http://www.gnu.org/licenses/>.
 
 from setuptools import setup, find_packages
-import sys, os
 
 version = '0.4'
 
@@ -28,7 +27,7 @@ setup(
     description="CKAN extension that allows users to publish datasets in the FIWARE Store (as offerings) in a simpler way. To do so, a new tab is added in the Datasets Manage menu that offers a form to set the basic options of the offering.",
     long_description='''
     ''',
-    classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
+    classifiers=[],  # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
     keywords='',
     author='Aitor Magan, Francisco de la Vega',
     author_email='fdelavega@conwet.com',

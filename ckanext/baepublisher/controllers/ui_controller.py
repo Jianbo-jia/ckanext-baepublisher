@@ -43,7 +43,7 @@ with open(filepath, 'rb') as f:
 
 
 class PublishControllerUI(base.BaseController):
-    
+
     def __init__(self, name=None):
         self._store_connector = StoreConnector(config)
         self.store_url = self._store_connector.store_url
@@ -74,7 +74,7 @@ class PublishControllerUI(base.BaseController):
                                                 'parentId': tag.get('parentId', '')}
                     break
         return list_of_categories, cat_relatives
-        
+
     # This function is intended to make get requests to the api
     def _get_content(self, content):
         c = plugins.toolkit.c
@@ -124,7 +124,7 @@ class PublishControllerUI(base.BaseController):
 
         self._list_of_categories, self._cat_relatives = self._sort_categories(self._get_content('category'))
         self._list_of_catalogs = self._get_content('catalog')
-        
+
         # Get categories in the expected format of the form select field
         def _getList(param):
             requiredFields = ['id', 'name']
