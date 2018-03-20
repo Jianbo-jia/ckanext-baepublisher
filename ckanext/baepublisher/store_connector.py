@@ -21,6 +21,7 @@ from __future__ import unicode_literals
 import ckan.model as model
 import ckan.plugins as plugins
 import logging
+import os
 import re
 
 from datetime import datetime
@@ -55,6 +56,7 @@ class StoreConnector(object):
     def __init__(self, config):
         self.site_url = self._get_url(config, 'ckan.site_url')
         self.store_url = self._get_url(config, 'ckan.baepublisher.store_url')
+        self.verify_https = not bool(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'))
 
     def _get_url(self, config, config_property):
         url = config.get(config_property, '')
@@ -252,7 +254,7 @@ class StoreConnector(object):
             oauth_request = OAuth2Session(token=usertoken)
 
             req_method = getattr(oauth_request, method)
-            req = req_method(url, headers=final_headers, json=data)
+            req = req_method(url, headers=final_headers, json=data, verify=self.verify_https)
 
             return req
 
