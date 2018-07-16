@@ -1,4 +1,4 @@
-CKAN Store Publisher [![Build Status](https://travis-ci.org/FIWARE-TMForum/ckanext-baepublisher.svg?branch=develop)](https://travis-ci.org/FIWARE-TMForum/ckanext-baepublisher) [![Coverage Status](https://coveralls.io/repos/github/FIWARE-TMForum/ckanext-baepublisher/badge.svg?branch=develop)](https://coveralls.io/github/FIWARE-TMForum/ckanext-baepublisher?branch=develop)
+CKAN Store Publisher [![Build Status](https://travis-ci.org/FIWARE-TMForum/ckanext-baepublisher.svg?branch=master)](https://travis-ci.org/FIWARE-TMForum/ckanext-baepublisher) [![Coverage Status](https://coveralls.io/repos/github/FIWARE-TMForum/ckanext-baepublisher/badge.svg?branch=master)](https://coveralls.io/github/FIWARE-TMForum/ckanext-baepublisher?branch=master)
 =====================
 
 CKAN extension that allows users to publish datasets in the FIWARE Store (Business API Ecosystem GE) as offerings in a simpler way. To do so, a new tab is added in the Datasets *Manage* menu that offers a form to set the basic options of the offering.
