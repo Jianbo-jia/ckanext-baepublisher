@@ -56,6 +56,11 @@ class StoreConnector(object):
     def __init__(self, config):
         self.site_url = self._get_url(config, 'ckan.site_url')
         self.store_url = self._get_url(config, 'ckan.baepublisher.store_url')
+
+        # Check that an store_url has been provided
+        if not len(self.store_url):
+            raise StoreException('A store URL for the baepublisher has not been provided')
+
         self.verify_https = not bool(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'))
 
     def _get_url(self, config, config_property):
