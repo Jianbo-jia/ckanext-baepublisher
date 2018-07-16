@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2015 - 2017 Conwet Lab., Universidad Politécnica de Madrid
+# Copyright (C) 2015 - 2018 Conwet Lab., Universidad Politécnica de Madrid
 
 # This file is part of CKAN Store Publisher Extension.
 
@@ -234,9 +234,9 @@ class StoreConnectorTest(unittest.TestCase):
             # If the first request returns a 401, the request is retried with a new access_token...
             if response_status != 401:
                 self.assertEquals(first_response, result)
-                req_method.assert_called_once_with(url, headers=expected_headers, json=data)
+                req_method.assert_called_once_with(url, headers=expected_headers, json=data, verify=True)
                 store_connector.OAuth2Session.assert_called_once_with(token=usertoken)
-                req_method.assert_called_once_with(url, headers=expected_headers, json=data)
+                req_method.assert_called_once_with(url, headers=expected_headers, json=data, verify=True)
             else:
                 # Check that the token has been refreshed
                 store_connector.plugins.toolkit.c.usertoken_refresh.assert_called_once_with()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2017 CoNWeT Lab., Universidad Politécnica de Madrid
+# Copyright (c) 2014 - 2018 CoNWeT Lab., Universidad Politécnica de Madrid
 
 # This file is part of CKAN Store Publisher Extension.
 
@@ -118,7 +118,7 @@ class UIControllerTest(unittest.TestCase):
         requests.get.assert_called_once_with(
             '{0}/DSProductCatalog/api/catalogManagement/v2/{1}'.format(
                 self._store_connector_instance.store_url, content),
-            params=filters)
+            params=filters, verify=True)
 
         if content == 'category' or content == 'catalog':
             self.assertEquals(r, {'id': '1'})
