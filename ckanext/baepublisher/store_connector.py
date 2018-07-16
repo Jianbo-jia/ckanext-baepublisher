@@ -403,7 +403,11 @@ class StoreConnector(object):
         :type dataset: dict
         """
 
-        products = self._get_existing_products(dataset)
+        try:
+            products = self._get_existing_products(dataset)
+        except:
+            # An exeption accessing the BAE should not be propagated to avoid exeption on non published datasets
+            return
 
         if len(products) > 0:
             product = products[0]
