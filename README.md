@@ -1,30 +1,32 @@
-CKAN Store Publisher [![Build Status](https://travis-ci.org/FIWARE-TMForum/ckanext-baepublisher.svg?branch=master)](https://travis-ci.org/FIWARE-TMForum/ckanext-baepublisher) [![Coverage Status](https://coveralls.io/repos/github/FIWARE-TMForum/ckanext-baepublisher/badge.svg?branch=master)](https://coveralls.io/github/FIWARE-TMForum/ckanext-baepublisher?branch=master)
-=====================
+CKAN BAE Publisher
+==================
 
-CKAN extension that allows users to publish datasets in the FIWARE Store (Business API Ecosystem GE) as offerings in a simpler way. To do so, a new tab is added in the Datasets *Manage* menu that offers a form to set the basic options of the offering.
+[![Build Status](https://travis-ci.org/FIWARE-TMForum/ckanext-baepublisher.svg?branch=master)](https://travis-ci.org/FIWARE-TMForum/ckanext-baepublisher)
+[![Coverage Status](https://coveralls.io/repos/github/FIWARE-TMForum/ckanext-baepublisher/badge.svg?branch=master)](https://coveralls.io/github/FIWARE-TMForum/ckanext-baepublisher?branch=master)
 
-Offerings are **not** automatically published so the dataset creator must access this form and complete it in order to publish the dataset in the FIWARE Store.
+CKAN extension that allows users to publish datasets in the FIWARE Business API Ecosystem GE as offerings in an easy way. To do so, a new tab is added in the Datasets *Manage* menu that offers a form to set the basic options of the offering.
 
-**Note:** This software is intended to integrate a CKAN instance with the FIWARE Store so it won't probably work with other Stores.
+Offerings are **not** automatically published so the dataset creator must access this form and complete it in order to publish the dataset using the FIWARE Business API Ecosystem.
+
+**Note:** This software is intended to integrate a CKAN instance with the FIWARE Business API Ecosystem and it won't work with other Marketplaces/Stores.
 
 Requirements
 ------------
 
-* A CKAN instance able to connect to the FIWARE Store via HTTP(s)
-* [FIWARE/TMF Biz Ecosystem v5.4.0 or higher](https://github.com/FIWARE-TMForum/Business-API-Ecosystem)
-* [OAuth2 CKAN Extension](https://github.com/conwetlab/ckanext-oauth2/). This extension is needed since the requests sent to the Store must include the OAuth2 credentials to identify the user that is creating the offering.
-* Optional: [CKAN Private Dataset Extension](https://github.com/conwetlab/ckanext-privatedatasets/)
+* A CKAN instance able to connect to the FIWARE Business API Ecosystem via HTTP(s)
+* [FIWARE/TMF Business API Ecosystem v5.4.0 or higher](https://github.com/FIWARE-TMForum/Business-API-Ecosystem)
+* [OAuth2 CKAN Extension](https://github.com/conwetlab/ckanext-oauth2/). This extension is needed since the requests sent to the BAE must include the OAuth2 credentials to identify the user that is creating the offering.
+* [CKAN Private Dataset Extension](https://github.com/conwetlab/ckanext-privatedatasets/)
 
 
 Installation
 ------------
 Install this extension in your CKAN instance is as easy as intall any other CKAN extension.
 
-* Download the source from this GitHub repo.
 * Activate your virtual environment (generally by running `. /usr/lib/ckan/default/bin/activate`)
-* Install the extension by running `python setup.py install`
+* Install the extension by running `pip install ckanext-baepublisher`
 * Modify your configuration file (generally in `/etc/ckan/default/production.ini`) and add `baepublisher` in the `ckan.plugins` setting. 
-* In the same config file, specify the location of FIWARE Store by adding the `ckan.baepublisher.store_url` setting.
+* In the same config file, specify the location of FIWARE BAE to use by adding the `ckan.baepublisher.store_url` setting.
 * Restart your apache2 reserver (`sudo service apache2 restart`)
 * That's All!
 
