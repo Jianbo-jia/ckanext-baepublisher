@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Copyright (c) 2015 CoNWeT Lab., Universidad Politécnica de Madrid
+# Copyright (c) 2018 Future Internet Consulting and Development Solutions S.L.
 
 # This file is part of CKAN BAE Publisher Extension.
 
@@ -18,17 +19,17 @@
 
 from __future__ import unicode_literals
 
-import ckan.model as model
-import ckan.plugins as plugins
+from datetime import datetime
+from decimal import Decimal
 import logging
 import os
 import re
-
-from datetime import datetime
 from unicodedata import normalize
-from decimal import Decimal
-from requests_oauthlib import OAuth2Session
 from urlparse import urlparse
+
+import ckan.model as model
+import ckan.plugins as plugins
+from requests_oauthlib import OAuth2Session
 
 log = logging.getLogger(__name__)
 
@@ -61,10 +62,15 @@ class StoreConnector(object):
         if not len(self.store_url):
             raise StoreException('A store URL for the baepublisher has not been provided')
 
-        self.verify_https = not bool(os.environ.get('OAUTHLIB_INSECURE_TRANSPORT'))
+        self.verify_https = os.environ.get('OAUTHLIB_INSECURE_TRANSPORT', 'false').strip().lower() in ('', 'false', '0', 'off')
 
     def _get_url(self, config, config_property):
-        url = config.get(config_property, '')
+        env_name = config_property.upper().replace('.', '_')
+        url = os.environ.get(env_name, '').strip()
+
+        if url == '':
+            url = config.get(config_property, '')
+
         url = url[:-1] if url.endswith('/') else url
         return url
 
@@ -405,7 +411,7 @@ class StoreConnector(object):
 
         try:
             products = self._get_existing_products(dataset)
-        except:
+        except Exception:
             # An exeption accessing the BAE should not be propagated to avoid exeption on non published datasets
             return
 
