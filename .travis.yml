@@ -4,7 +4,8 @@ python:
     - "2.7"
 env:
     - CKANVERSION=2.6.3 POSTGISVERSION=2
-    - CKANVERSION=2.7.0 POSTGISVERSION=2
+    - CKANVERSION=2.7.4 POSTGISVERSION=2
+    - CKANVERSION=2.8.0 POSTGISVERSION=2
 services:
     - redis-server
     - postgresql
@@ -14,5 +15,5 @@ script:
     - sh bin/travis-run.sh
 after_success: coveralls
 branches:
-  only:
-    - master
+    only:
+        - master
