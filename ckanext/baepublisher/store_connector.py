@@ -36,19 +36,6 @@ WHITESPACE_RE = re.compile(r'\s+')
 REPEATED_DOTS_RE = re.compile(r'\.{2,}')
 
 
-def slugify(text, delim=' '):
-    """Generates an slightly worse ASCII-only slug."""
-    _punct_re = re.compile(r'[\t !"#$%&\'()*/<=>?@\[\\\]`{|},.:]+')
-    result = []
-    for word in _punct_re.split(text):
-        word = normalize('NFKD', word).encode('ascii', 'ignore')
-        word = word.decode('utf-8')
-        if word:
-            result.append(word)
-
-    return delim.join(result)
-
-
 class StoreException(Exception):
     pass
 
