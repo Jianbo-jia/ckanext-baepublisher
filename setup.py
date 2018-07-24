@@ -52,6 +52,9 @@ setup(
         'ckanext-oauth2>=0.4.0',
         'ckanext-privatedatasets>=0.4',
     ],
+    tests_require=[
+        'parameterized',
+    ],
     entry_points='''
         [ckan.plugins]
         baepublisher=ckanext.baepublisher.plugin:StorePublisher

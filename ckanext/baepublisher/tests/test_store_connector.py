@@ -26,7 +26,7 @@ import requests
 from decimal import Decimal
 
 from mock import call, MagicMock, patch
-from nose_parameterized import parameterized
+from parameterized import parameterized
 
 # Need to be defined here, since it will be used as tests parameter
 ConnectionError = requests.ConnectionError
