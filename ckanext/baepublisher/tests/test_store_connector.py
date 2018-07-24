@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2015 - 2018 Conwet Lab., Universidad Politécnica de Madrid
+# Copyright (c) 2018 Future Internet Consulting and Development Solutions S.L.
 
 # This file is part of CKAN BAE Publisher Extension.
 
@@ -24,7 +25,7 @@ import unittest
 import requests
 from decimal import Decimal
 
-from mock import MagicMock, call
+from mock import call, MagicMock, patch
 from nose_parameterized import parameterized
 
 # Need to be defined here, since it will be used as tests parameter
@@ -102,21 +103,58 @@ class StoreConnectorTest(unittest.TestCase):
         self.instance._get_offering = self._get_offering
 
     @parameterized.expand([
-        ('%s' % BASE_SITE_URL, '%s' % BASE_STORE_URL),
-        ('%s/' % BASE_SITE_URL, '%s' % BASE_STORE_URL),
-        ('%s' % BASE_SITE_URL, '%s/' % BASE_STORE_URL),
-        ('%s/' % BASE_SITE_URL, '%s/' % BASE_STORE_URL)
+        (
+            {'ckan.site_url': BASE_SITE_URL, 'ckan.baepublisher.store_url': BASE_STORE_URL},
+            {},
+            True,
+        ),
+        (
+            {'ckan.site_url': BASE_SITE_URL + '/', 'ckan.baepublisher.store_url': BASE_STORE_URL + '/'},
+            {'OAUTHLIB_INSECURE_TRANSPORT': '1'},
+            False,
+        ),
+        (
+            {'ckan.site_url': 'https://ckan.example.org', 'ckan.baepublisher.store_url': 'https://market.example.org'},
+            {'CKAN_SITE_URL': BASE_SITE_URL, 'CKAN_BAEPUBLISHER_STORE_URL': BASE_STORE_URL, 'OAUTHLIB_INSECURE_TRANSPORT': 'tRuE'},
+            False,
+        ),
+        (
+            {'ckan.baepublisher.store_url': BASE_STORE_URL + '/'},
+            {'CKAN_SITE_URL': BASE_SITE_URL, 'OAUTHLIB_INSECURE_TRANSPORT': 'oN'},
+            False,
+        ),
+        (
+            {},
+            {'CKAN_SITE_URL': BASE_SITE_URL + '/', 'CKAN_BAEPUBLISHER_STORE_URL': BASE_STORE_URL + '/', 'OAUTHLIB_INSECURE_TRANSPORT': '0'},
+            True,
+        ),
+        (
+            {'ckan.site_url': BASE_SITE_URL},
+            {'CKAN_BAEPUBLISHER_STORE_URL': BASE_STORE_URL, 'OAUTHLIB_INSECURE_TRANSPORT': 'fAlSe'},
+            True,
+        ),
+        (
+            {'ckan.site_url': BASE_SITE_URL},
+            {'CKAN_SITE_URL': BASE_SITE_URL, 'CKAN_BAEPUBLISHER_STORE_URL': BASE_STORE_URL, 'OAUTHLIB_INSECURE_TRANSPORT': 'oFf'},
+            True,
+        ),
     ])
-    def test_init(self, site_url, store_url):
+    @patch('ckanext.baepublisher.store_connector.os')
+    def test_init(self, config, env, expected_verify, os):
 
-        config = {
-            'ckan.site_url': site_url,
-            'ckan.baepublisher.store_url': store_url,
-        }
+        os.environ = env
 
         instance = store_connector.StoreConnector(config)
+
         self.assertEquals(BASE_SITE_URL, instance.site_url)
         self.assertEquals(BASE_STORE_URL, instance.store_url)
+        self.assertEquals(expected_verify, instance.verify_https)
+
+    @patch('ckanext.baepublisher.store_connector.os')
+    def test_init_missing_store_url(self, os):
+        os.environ = {}
+        with self.assertRaises(store_connector.StoreException):
+            store_connector.StoreConnector({})
 
     @parameterized.expand([
         (0,),
