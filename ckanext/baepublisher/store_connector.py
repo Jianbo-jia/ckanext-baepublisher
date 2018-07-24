@@ -32,19 +32,8 @@ import ckan.plugins as plugins
 from requests_oauthlib import OAuth2Session
 
 log = logging.getLogger(__name__)
-
-
-def slugify(text, delim=' '):
-    """Generates an slightly worse ASCII-only slug."""
-    _punct_re = re.compile(r'[\t !"#$%&\'()*/<=>?@\[\\\]`{|},.:]+')
-    result = []
-    for word in _punct_re.split(text):
-        word = normalize('NFKD', word).encode('ascii', 'ignore')
-        word = word.decode('utf-8')
-        if word:
-            result.append(word)
-
-    return delim.join(result)
+WHITESPACE_RE = re.compile(r'\s+')
+REPEATED_DOTS_RE = re.compile(r'\.{2,}')
 
 
 class StoreException(Exception):
@@ -75,16 +64,16 @@ class StoreConnector(object):
         return url
 
     def validate_version(self, version):
-        ver = version
-        if not ver:
-            ver = '1.0'
-        if re.search(r'\.$', ver) is not None:
-            ver += '0'
-        if re.search(r'\.{2,}', ver) is not None:
-            ver = re.sub(r'\.{2,}', r'\.', ver)
-        if re.search(r'^\.', ver) is not None:
-            ver = "1" + ver
-        return ver
+        version = re.sub(WHITESPACE_RE, '', version) if version else ''
+        if not version:
+            version = '1.0'
+        if version.endswith('.'):
+            version += '0'
+        version = re.sub(REPEATED_DOTS_RE, '.', version)
+        if version.startswith('.'):
+            version = "1" + version
+
+        return version
 
     def _get_dataset_url(self, dataset):
         return '%s/dataset/%s' % (self.site_url, dataset['id'])

@@ -22,7 +22,7 @@ import ckanext.baepublisher.plugin as plugin
 import unittest
 
 from mock import MagicMock
-from nose_parameterized import parameterized
+from parameterized import parameterized
 
 
 class PluginTest(unittest.TestCase):

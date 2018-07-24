@@ -43,6 +43,5 @@ cd -
 
 echo "Installing ckanext-baepublisher and its requirements..."
 python setup.py develop
-pip install -r dev-requirements.txt --allow-all-external
 
 echo "travis-build.bash is done."

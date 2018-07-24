@@ -25,7 +25,7 @@ import unittest
 import requests
 
 from mock import MagicMock
-from nose_parameterized import parameterized
+from parameterized import parameterized
 
 
 MISSING_ERROR = 'This field is required to publish the offering'

@@ -21,7 +21,7 @@ from setuptools import setup, find_packages
 import os
 
 
-version = '0.4'
+version = '0.5'
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
@@ -51,6 +51,9 @@ setup(
     install_requires=[
         'ckanext-oauth2>=0.4.0',
         'ckanext-privatedatasets>=0.4',
+    ],
+    tests_require=[
+        'parameterized',
     ],
     entry_points='''
         [ckan.plugins]

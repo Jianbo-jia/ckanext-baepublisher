@@ -26,7 +26,7 @@ import requests
 from decimal import Decimal
 
 from mock import call, MagicMock, patch
-from nose_parameterized import parameterized
+from parameterized import parameterized
 
 # Need to be defined here, since it will be used as tests parameter
 ConnectionError = requests.ConnectionError
@@ -155,6 +155,17 @@ class StoreConnectorTest(unittest.TestCase):
         os.environ = {}
         with self.assertRaises(store_connector.StoreException):
             store_connector.StoreConnector({})
+
+    @parameterized.expand([
+        (None, '1.0'),
+        (' ', '1.0'),
+        ('1.  2', '1.2'),
+        ('1.2.', '1.2.0'),
+        ('1....2', '1.2'),
+        ('.1.2.', '1.1.2.0'),
+    ])
+    def test_validate_version(self, url, expected_result):
+        self.assertEquals(self.instance.validate_version(url), expected_result)
 
     @parameterized.expand([
         (0,),
